@@ -497,9 +497,7 @@
             border-color: var(--accent);
         }
 
-        canvas {
-            max-height: 500px !important;
-        }
+        /* canvas max-height removed to allow full expansion */
 
         /* Slider styling */
         input[type="range"]::-webkit-slider-thumb {
@@ -741,13 +739,13 @@
 
     <!-- Industry Compare Modal -->
     <div id="industryCompareModal" class="modal">
-        <div class="modal-content" style="max-width: 95vw; width: 95vw; height: 90vh; display: flex; flex-direction: column;">
-            <div class="modal-header">
-                <h2>Compare Industries</h2>
+        <div class="modal-content" style="max-width: 95vw; width: 95vw; height: 95vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="padding: 1rem 1.5rem;">
+                <h2 style="font-size: 1.25rem;">Compare Industries</h2>
                 <button onclick="closeIndustryCompareModal()" class="close-btn">✕</button>
             </div>
-            <div class="modal-body" style="padding: 1.5rem; flex: 1; overflow: hidden;">
-                <div style="display: flex; gap: 1.5rem; height: 100%;">
+            <div class="modal-body" style="padding: 1rem 1.5rem 0.5rem; flex: 1; overflow: hidden; min-height: 0;">
+                <div style="display: flex; gap: 1.5rem; height: 100%; min-height: 0;">
                     <!-- Left Panel: Industry Selector -->
                     <div id="industrySelectorPanel" style="width: 260px; flex-shrink: 0; background: var(--bg-secondary); border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; overflow: hidden;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
@@ -771,15 +769,14 @@
                         </div>
                     </div>
                     <!-- Right Panel: Chart -->
-                    <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
-                        <div id="hoveredIndustryLabel" style="display: none; padding: 0.5rem 1rem; background: var(--accent); color: var(--bg-primary); font-size: 0.8125rem; font-weight: 600; border-radius: 4px; margin-bottom: 0.5rem; text-align: center;"></div>
-                        <div style="flex: 1; position: relative;">
-                            <canvas id="industryCompareCanvas"></canvas>
+                    <div style="flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0;">
+                        <div style="flex: 1; position: relative; min-height: 0;">
+                            <canvas id="industryCompareCanvas" style="position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important;"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="flex-shrink: 0;">
+            <div class="modal-footer" style="flex-shrink: 0; padding: 0.75rem 2rem;">
                 <button onclick="loadIndustryCompare(30)" class="time-btn">30 Days</button>
                 <button onclick="loadIndustryCompare(90)" class="time-btn active" id="industryCompare90">90 Days</button>
                 <button onclick="loadIndustryCompare(180)" class="time-btn">180 Days</button>
@@ -1846,12 +1843,8 @@
                             intersect: false
                         },
                         onHover: (event, activeElements, chart) => {
-                            const chartArea = chart.chartArea;
                             if (activeElements.length > 0) {
                                 const activeIndex = activeElements[0].datasetIndex;
-                                // Update hovered industry label
-                                document.getElementById('hoveredIndustryLabel').textContent = chart.data.datasets[activeIndex].label;
-                                document.getElementById('hoveredIndustryLabel').style.display = 'block';
                                 chart.data.datasets.forEach((ds, i) => {
                                     if (i === activeIndex) {
                                         ds.borderWidth = 4;
@@ -1863,7 +1856,6 @@
                                 });
                                 chart.update('none');
                             } else {
-                                document.getElementById('hoveredIndustryLabel').style.display = 'none';
                                 chart.data.datasets.forEach((ds) => {
                                     ds.borderWidth = 1.5;
                                     ds.borderColor = ds._originalColor;
@@ -1873,7 +1865,19 @@
                         },
                         plugins: {
                             legend: { display: false },
-                            tooltip: { enabled: false }
+                            tooltip: {
+                                enabled: true,
+                                backgroundColor: 'rgba(0,0,0,0.9)',
+                                titleColor: '#f4f4f5',
+                                titleFont: { size: 13, weight: '600' },
+                                bodyFont: { size: 0 },
+                                padding: 10,
+                                displayColors: false,
+                                callbacks: {
+                                    title: (context) => context[0].dataset.label,
+                                    label: () => ''
+                                }
+                            }
                         },
                         scales: {
                             x: {
