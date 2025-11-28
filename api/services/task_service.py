@@ -172,6 +172,22 @@ def queue_rs_calculation() -> str:
     return calc_api.calculate_all_rs(calc_dates)
 
 
+def queue_full_rs_recalculation() -> str:
+    """Queue RS calculation for ALL available dates (used when weights change)"""
+    import importlib.util
+
+    api_path = CALC_ENGINE_DIR / "api.py"
+    spec = importlib.util.spec_from_file_location("calc_engine_api", api_path)
+    calc_api = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(calc_api)
+
+    # Get ALL dates, not just backfill
+    dates = calc_api.get_available_dates()
+    print(f"[TASK] Full RS recalculation for {len(dates)} dates")
+
+    return calc_api.calculate_all_rs(dates)
+
+
 def start_recalculate_pipeline() -> str:
     """Start pipeline to recalculate returns and RS from existing prices"""
     # Clear old task statuses for fresh counts

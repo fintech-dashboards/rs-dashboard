@@ -261,8 +261,11 @@ def get_pipeline_status() -> dict:
         sector_rs_stats = task_stats.get('calc_sector_rs', {'running': 0, 'completed': 0, 'total': 0})
         industry_rs_stats = task_stats.get('calc_industry_rs', {'running': 0, 'completed': 0, 'total': 0})
 
-        def get_item_status(item_stage, has_data):
-            """Get status for an item based on its stage and active batch"""
+        def get_item_status(item_stage, has_data, running_count=0):
+            """Get status for an item based on its stage, data, and actual running tasks"""
+            # If there are actually running tasks for this item, it's running
+            if running_count > 0:
+                return 'running'
             if active_stage == 0:
                 # No active batch - show complete if data exists
                 return 'complete' if has_data else 'pending'
@@ -270,8 +273,8 @@ def get_pipeline_status() -> dict:
                 # This stage hasn't started yet - show pending (waiting)
                 return 'pending'
             elif active_stage == item_stage:
-                # This stage is currently active - running
-                return 'running'
+                # Stage is active but no running tasks - check if data exists
+                return 'complete' if has_data else 'running'
             else:
                 # This stage completed in current batch - complete
                 return 'complete'
@@ -280,13 +283,13 @@ def get_pipeline_status() -> dict:
             'stocks': {
                 'total': stock_count,
                 'prices': {
-                    'status': get_item_status(1, price_days > 0),
+                    'status': get_item_status(1, price_days > 0, fetch_stats['running']),
                     'days': price_days,
                     'completed': fetch_stats['completed'],
                     'task_total': stock_count
                 },
                 'rs_score': {
-                    'status': get_item_status(3, stock_rs_days > 0),
+                    'status': get_item_status(3, stock_rs_days > 0, stock_rs_stats['running']),
                     'days': stock_rs_days,
                     'completed': stock_rs_stats['completed'],
                     'task_total': stock_rs_stats['total'] or 1
@@ -295,13 +298,13 @@ def get_pipeline_status() -> dict:
             'sectors': {
                 'total': sector_count,
                 'returns': {
-                    'status': get_item_status(2, sector_return_days > 0),
+                    'status': get_item_status(2, sector_return_days > 0, sector_stats['running']),
                     'days': sector_return_days,
                     'completed': sector_stats['completed'],
                     'task_total': sector_stats['total'] or sector_count
                 },
                 'rs_score': {
-                    'status': get_item_status(3, sector_rs_days > 0),
+                    'status': get_item_status(3, sector_rs_days > 0, sector_rs_stats['running']),
                     'days': sector_rs_days,
                     'completed': sector_rs_stats['completed'],
                     'task_total': sector_rs_stats['total'] or 1
@@ -310,13 +313,13 @@ def get_pipeline_status() -> dict:
             'industries': {
                 'total': industry_count,
                 'returns': {
-                    'status': get_item_status(2, industry_return_days > 0),
+                    'status': get_item_status(2, industry_return_days > 0, industry_stats['running']),
                     'days': industry_return_days,
                     'completed': industry_stats['completed'],
                     'task_total': industry_stats['total'] or industry_count
                 },
                 'rs_score': {
-                    'status': get_item_status(3, industry_rs_days > 0),
+                    'status': get_item_status(3, industry_rs_days > 0, industry_rs_stats['running']),
                     'days': industry_rs_days,
                     'completed': industry_rs_stats['completed'],
                     'task_total': industry_rs_stats['total'] or 1

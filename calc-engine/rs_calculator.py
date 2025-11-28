@@ -67,6 +67,48 @@ def _load_price_matrix(start_date: str, end_date: str) -> Tuple[pd.DataFrame, pd
         conn.close()
 
 
+def _load_stock_returns_matrix(start_date: str, end_date: str) -> Tuple[pd.DataFrame, pd.Series]:
+    """Load all stock daily returns and benchmark returns in a single query.
+
+    Returns:
+        returns_matrix: DataFrame with dates as index, symbols as columns, daily_return as values
+        benchmark_returns: Series with dates as index, daily_return as values
+    """
+    conn = get_prices_connection()
+    try:
+        # Load all stock daily returns
+        returns_df = pd.read_sql("""
+            SELECT symbol, date, daily_return
+            FROM prices
+            WHERE date >= ? AND date <= ? AND daily_return IS NOT NULL
+            ORDER BY date, symbol
+        """, conn, params=(start_date, end_date))
+
+        if returns_df.empty:
+            return pd.DataFrame(), pd.Series()
+
+        # Pivot to matrix: rows=dates, columns=symbols
+        returns_matrix = returns_df.pivot_table(
+            index='date',
+            columns='symbol',
+            values='daily_return',
+            aggfunc='first'
+        )
+
+        # Get benchmark (SPY) returns
+        benchmark = get_benchmark()
+        if benchmark in returns_matrix.columns:
+            benchmark_returns = returns_matrix[benchmark].copy()
+            # Remove benchmark from stock matrix
+            returns_matrix = returns_matrix.drop(columns=[benchmark])
+        else:
+            benchmark_returns = pd.Series(dtype=float)
+
+        return returns_matrix, benchmark_returns
+    finally:
+        conn.close()
+
+
 def _load_sector_returns(start_date: str, end_date: str) -> pd.DataFrame:
     """Load sector daily returns from price_metrics.db"""
     conn = get_metrics_connection()
@@ -298,6 +340,7 @@ def _do_calculate_stock_rs(task_id: str, dates: List[str]) -> dict:
     """Calculate RS scores for all stocks on given dates.
 
     This is the main calculation function that runs in a background thread.
+    Uses pre-calculated daily returns from prices table (consistent with sectors/industries).
     """
     try:
         _log(f"STOCK RS Starting for {len(dates)} dates...")
@@ -314,34 +357,34 @@ def _do_calculate_stock_rs(task_id: str, dates: List[str]) -> dict:
         lookback_start = (earliest_date - timedelta(days=lookback + 50)).strftime('%Y-%m-%d')
         _log(f"STOCK RS Date range: {lookback_start} to {dates_sorted[-1]}")
 
-        update_task_status(task_id, 'running', progress='Loading price data')
+        update_task_status(task_id, 'running', progress='Loading daily returns')
 
-        # Single query to load all prices
-        price_matrix, benchmark_prices = _load_price_matrix(lookback_start, dates_sorted[-1])
-        _log(f"STOCK RS Price matrix: {price_matrix.shape if not price_matrix.empty else 'EMPTY'}")
+        # Load pre-calculated daily returns from prices table
+        returns_matrix, benchmark_returns = _load_stock_returns_matrix(lookback_start, dates_sorted[-1])
+        _log(f"STOCK RS Returns matrix: {returns_matrix.shape if not returns_matrix.empty else 'EMPTY'}")
 
-        if price_matrix.empty:
-            _log("STOCK RS ERROR: No price data found!")
-            update_task_status(task_id, 'failed', error='No price data found')
-            return {'task_id': task_id, 'error': 'No price data'}
+        if returns_matrix.empty:
+            _log("STOCK RS ERROR: No return data found!")
+            update_task_status(task_id, 'failed', error='No return data found')
+            return {'task_id': task_id, 'error': 'No return data'}
 
         # If benchmark not found in matrix, load separately
-        if benchmark_prices.empty:
-            _log(f"STOCK RS Loading benchmark {get_benchmark()} separately...")
-            benchmark_prices = _load_benchmark_prices(lookback_start, dates_sorted[-1])
+        if benchmark_returns.empty:
+            _log(f"STOCK RS Loading benchmark {get_benchmark()} returns separately...")
+            benchmark_returns = _load_benchmark_returns(lookback_start, dates_sorted[-1])
 
-        if benchmark_prices.empty:
-            _log(f"STOCK RS ERROR: No benchmark ({get_benchmark()}) data!")
-            update_task_status(task_id, 'failed', error=f'No benchmark ({get_benchmark()}) data found')
+        if benchmark_returns.empty:
+            _log(f"STOCK RS ERROR: No benchmark ({get_benchmark()}) returns!")
+            update_task_status(task_id, 'failed', error=f'No benchmark ({get_benchmark()}) returns found')
             return {'task_id': task_id, 'error': 'No benchmark data'}
 
-        symbols = price_matrix.columns.tolist()
+        symbols = returns_matrix.columns.tolist()
         batch_results = []
         total_saved = 0
         BATCH_SIZE = 10000  # Save every 10k records to prevent memory bloat
 
         # Adjust min_points based on available data
-        available_days = len(price_matrix)
+        available_days = len(returns_matrix)
         effective_min_points = min(min_points, available_days // 2)
         if effective_min_points < 60:
             effective_min_points = 60  # Absolute minimum
@@ -354,23 +397,23 @@ def _do_calculate_stock_rs(task_id: str, dates: List[str]) -> dict:
                 update_task_status(task_id, 'running', progress=f'Processing {i+1}/{len(dates_sorted)}: {date_str}')
 
             # Get lookback window ending at this date
-            date_mask = price_matrix.index <= date_str
-            window = price_matrix.loc[date_mask].tail(lookback)
+            date_mask = returns_matrix.index <= date_str
+            window = returns_matrix.loc[date_mask].tail(lookback)
 
             if len(window) < effective_min_points:
                 continue
 
             # Get benchmark window
-            bench_mask = benchmark_prices.index <= date_str
-            bench_window = benchmark_prices.loc[bench_mask].tail(lookback)
+            bench_mask = benchmark_returns.index <= date_str
+            bench_window = benchmark_returns.loc[bench_mask].tail(lookback)
 
             if len(bench_window) < effective_min_points:
                 continue
 
-            # Calculate quarterly returns for all stocks (vectorized)
-            stock_q_returns = _calculate_quarterly_returns_from_prices(window.values)
+            # Calculate quarterly returns from daily returns (consistent with sectors/industries)
+            stock_q_returns = _calculate_quarterly_returns_from_daily_returns(window.values)
 
-            # Calculate benchmark quarterly returns as scalar
+            # Calculate benchmark quarterly returns from daily returns
             bench_weighted = _get_benchmark_quarterly_returns(bench_window.values, weights)
 
             # Apply weights: np.dot(4,) @ (4, n_stocks) = (n_stocks,)

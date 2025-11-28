@@ -198,7 +198,7 @@ async def update_rs_settings(
     q3_weight: float = Form(...),
     q4_weight: float = Form(...)
 ):
-    """Update RS calculation weights"""
+    """Update RS calculation weights and trigger full RS recalculation"""
     from settings import update_settings
 
     # Normalize weights to sum to 1.0
@@ -211,11 +211,17 @@ async def update_rs_settings(
             'q4_weight': round(q4_weight / total, 2),
         })
 
+    # Clear all RS scores and trigger recalculation with new weights
+    # queue_rs_calculation calls calculate_all_rs which does stocks, sectors, AND industries
+    task_service.clear_rs_scores()
+    task_service.queue_rs_calculation()
+
     # Return updated settings partial
     from settings import get_settings, DEFAULT_SETTINGS
     settings = {**DEFAULT_SETTINGS, **get_settings()}
     return templates.TemplateResponse("partials/rs_settings.html", {
         "request": request,
         "settings": settings,
-        "saved": True
+        "saved": True,
+        "recalculating": True
     })
