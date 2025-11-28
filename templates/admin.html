@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RS Dashboard - Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- HTMX for dynamic updates -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    
+    <!-- Alpine.js for modals and filters only -->
+    <script src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js" defer></script>
+    
+    <!-- Chart.js 3.x for financial charts (v4 has compatibility issues with financial plugin) -->
+    <script src="https://cdn.jsdelivr.net/npm/luxon@1.28.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.2.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1/dist/chartjs-chart-financial.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary: #08090a;
+            --bg-secondary: #0d0e10;
+            --bg-card: #131417;
+            --bg-elevated: #1a1b1f;
+            --text-primary: #f4f4f5;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --accent: #d97706;
+            --accent-dim: rgba(217, 119, 6, 0.15);
+            --border: #1f2023;
+            --border-light: #2a2b2f;
+            --green: #10b981;
+            --red: #ef4444;
+            
+            /* Font sizes */
+            --fs-xs: 0.75rem;
+            --fs-sm: 0.875rem;
+            --fs-base: 1rem;
+            --fs-lg: 1.125rem;
+            --fs-xl: 1.25rem;
+            --fs-2xl: 1.5rem;
+            --fs-3xl: 2rem;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+            font-size: var(--fs-base);
+            -webkit-font-smoothing: antialiased;
+            letter-spacing: -0.01em;
+        }
+
+        ::selection {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        [x-cloak] {
+            display: none !important;
+        }
+
+        /* Navigation */
+        nav {
+            padding: 1.5rem 3rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        nav .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            text-decoration: none;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .logo span {
+            color: var(--accent);
+        }
+
+        .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 1rem;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            transition: color 0.3s;
+        }
+
+        .nav-link:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        /* Buy Me a Coffee */
+        .bmc-button {
+            display: inline-block;
+            padding: 0.5rem 1.25rem;
+            background: var(--accent);
+            color: var(--bg-primary);
+            font-size: 0.9375rem;
+            font-weight: 600;
+            border-radius: 6px;
+            text-decoration: none;
+            box-shadow: 0 2px 8px rgba(217, 119, 6, 0.3);
+        }
+
+        .bmc-button:hover {
+            opacity: 0.9;
+        }
+
+        .bmc-button.icon-only {
+            background: transparent;
+            color: var(--accent);
+            font-size: 1.5rem;
+            padding: 0.25rem 0.5rem;
+            box-shadow: none;
+        }
+
+        .bmc-button.icon-only:hover {
+            opacity: 0.8;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Sections */
+        section {
+            padding: 3rem 0;
+        }
+
+        .section-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+        }
+
+        /* Stage Grid */
+        .stage-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2px;
+            background: var(--border);
+            border: 1px solid var(--border);
+        }
+
+        .stage {
+            background: var(--bg-secondary);
+            padding: 2rem;
+            text-align: center;
+            position: relative;
+            transition: background 0.3s;
+            display: flex;
+            flex-direction: column;
+            min-height: 280px;
+        }
+
+        .stage::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--accent);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.5s;
+        }
+
+        .stage.active::before {
+            transform: scaleX(1);
+        }
+
+        .stage.complete {
+            background: var(--bg-card);
+        }
+
+        .stage-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 0.2em;
+            color: var(--accent);
+            margin-bottom: 0.75rem;
+        }
+
+        .stage-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.875rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            border-radius: 2px;
+            margin-bottom: 0.875rem;
+        }
+
+        .stage-status.complete {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--green);
+        }
+
+        .stage-status.active {
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+
+        .stage-status.waiting {
+            background: rgba(217, 119, 6, 0.1);
+            color: var(--accent);
+        }
+
+        .stage-status.pending {
+            background: rgba(107, 114, 128, 0.15);
+            color: var(--text-muted);
+        }
+
+        /* Spinner */
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-right-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Hourglass icon for waiting - no animation */
+        .hourglass {
+            display: inline-block;
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        .stage-count {
+            font-size: 1.5rem;
+            color: var(--text-primary);
+            margin-bottom: 0.875rem;
+            font-weight: 600;
+        }
+
+        .stage-progress-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--bg-elevated);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 0.875rem;
+        }
+
+        .stage-progress-fill {
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.3s ease;
+        }
+
+        .stage-progress-fill.complete {
+            background: var(--green);
+        }
+
+        .stage-timestamp {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+            margin-bottom: 0.875rem;
+            line-height: 1.5;
+            min-height: 2.5rem;
+            flex-grow: 1;
+        }
+
+        .stage-timestamp strong {
+            color: var(--text-secondary);
+        }
+
+        .stage-btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-light);
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: auto;
+        }
+
+        .stage-btn:hover:not(:disabled) {
+            background: var(--bg-elevated);
+            border-color: var(--accent);
+        }
+
+        .stage-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .stage-btn.btn-danger {
+            background: var(--red);
+            color: white;
+            border-color: var(--red);
+        }
+
+        .stage-btn.btn-danger:hover {
+            background: #dc2626;
+            border-color: #dc2626;
+        }
+
+        /* Table */
+        .table-section {
+            margin-top: 3rem;
+        }
+
+        .filters {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filters select,
+        .filters input {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            padding: 0.625rem 1rem;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        .filters select {
+            min-width: 160px;
+            cursor: pointer;
+            padding-right: 2.5rem;
+            background-color: var(--bg-secondary);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 12px;
+        }
+
+        .filters input {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .filters select:hover,
+        .filters input:hover {
+            border-color: var(--border-light);
+        }
+
+        .filters select:focus,
+        .filters input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: var(--bg-elevated);
+        }
+
+        .filters select:focus {
+            background-color: var(--bg-elevated);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23d97706' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+        }
+
+        .filter-label {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+        }
+
+        thead {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+        
+        th[onclick] {
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            transition: background 0.2s;
+        }
+        
+        th[onclick]:hover {
+            background: var(--bg-elevated);
+            color: var(--accent);
+        }
+        
+        th[onclick]::selection {
+            background: transparent;
+        }
+        
+        .sort-indicator {
+            display: inline-block;
+            margin-left: 0.5rem;
+            opacity: 0.5;
+            font-size: 0.75rem;
+            pointer-events: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        th[onclick].sorted .sort-indicator {
+            opacity: 1;
+            color: var(--accent);
+        }
+
+        td {
+            padding: 1rem;
+            border-top: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        tr:hover td {
+            background: var(--bg-elevated);
+        }
+
+        td strong {
+            color: var(--text-primary);
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .status-complete { color: var(--green); }
+        .status-failed { color: var(--red); }
+        .status-fetching,
+        .status-calculating { color: var(--accent); }
+        .status-pending { color: var(--text-muted); }
+
+        .score-high { color: var(--green); font-weight: 600; }
+        .score-mid { color: var(--accent); font-weight: 600; }
+        .score-low { color: var(--text-muted); }
+        
+        .dual-sparkline {
+            display: block;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+        
+        .icon-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 0.375rem;
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .icon-btn:hover {
+            background: var(--bg-elevated);
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(8, 9, 10, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.25rem;
+            font-weight: 400;
+        }
+
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .close-btn:hover {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+
+        .input-method {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-method label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        .input-method input[type="radio"] {
+            cursor: pointer;
+        }
+
+        .ticker-input {
+            width: 100%;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            resize: vertical;
+            line-height: 1.6;
+        }
+
+        .ticker-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .ticker-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--border-light);
+            border-radius: 2px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--accent);
+            background: var(--bg-elevated);
+        }
+
+        .btn-primary {
+            padding: 0.625rem 1.5rem;
+            background: var(--accent);
+            color: var(--bg-primary);
+            border: none;
+            border-radius: 2px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #f59e0b;
+            box-shadow: 0 10px 40px -10px rgba(217, 119, 6, 0.5);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            padding: 0.625rem 1.5rem;
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-light);
+            border-radius: 2px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--bg-elevated);
+            border-color: var(--text-muted);
+        }
+
+        .btn-secondary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-danger {
+            padding: 0.625rem 1.5rem;
+            background: var(--red);
+            color: white;
+            border: none;
+            border-radius: 2px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+        }
+
+        .btn-danger:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .advanced-section {
+            margin-bottom: 2rem;
+        }
+
+        .advanced-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .advanced-section h4 {
+            font-size: 0.875rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .advanced-section p {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            line-height: 1.6;
+        }
+
+        /* Settings Card */
+        .settings-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1.5rem;
+        }
+
+        .settings-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .settings-header h3 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.125rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .settings-header p {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .weight-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .weight-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .weight-item label {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .weight-input-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .weight-input-wrap input {
+            width: 100%;
+            padding: 0.75rem 2.5rem 0.75rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .weight-input-wrap input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .weight-suffix {
+            position: absolute;
+            right: 0.75rem;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            pointer-events: none;
+        }
+
+        .weight-hint {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .settings-footer {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .save-indicator {
+            font-size: 0.8125rem;
+            color: var(--green);
+            font-weight: 500;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .stage-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .weight-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 1.5rem;
+            }
+
+            nav {
+                padding: 1rem 1.5rem;
+            }
+
+            .stage-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stage {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% include 'partials/navbar.html' with context %}
+
+    <div x-data="{
+            showAddModal: {{ 'true' if show_upload_modal else 'false' }},
+            showAdvanced: false,
+            showChartModal: false,
+            chartSymbol: '',
+            chartName: '',
+            filter: 'all',
+            sectorFilter: 'all',
+            industryFilter: 'all',
+            search: ''
+         }"
+         @show-add-modal.window="showAddModal = true"
+         @show-advanced-modal.window="showAdvanced = true"
+         @show-chart-modal.window="showChartModal = true; chartSymbol = $event.detail.symbol; chartName = $event.detail.name; loadChartData($event.detail.symbol)">
+        <!-- Pipeline Status -->
+        <section>
+            <div class="container">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <div class="section-label" style="margin-bottom: 0;">PIPELINE STATUS</div>
+                </div>
+
+                <!-- HTMX: Polling every 2 seconds (reduced from 500ms for better performance) -->
+                <div id="pipeline-stages"
+                     hx-get="/api/pipeline-status-html"
+                     hx-trigger="load, every 2000ms"
+                     hx-swap="innerHTML">
+                    {% include 'partials/pipeline_stages.html' %}
+                </div>
+            </div>
+        </section>
+
+        <!-- Divider -->
+        <div style="display: flex; justify-content: center; margin: 1.5rem 0; padding: 0 1rem;">
+            <div style="width: 80%; max-width: 1200px; height: 1px; background: var(--accent);"></div>
+        </div>
+
+        <!-- RS Settings -->
+        <section>
+            <div class="container">
+                <div class="section-label">RS SETTINGS</div>
+                <div id="rs-settings-container"
+                     hx-get="/api/settings/rs-html"
+                     hx-trigger="load"
+                     hx-swap="innerHTML">
+                    {% include 'partials/rs_settings.html' %}
+                </div>
+            </div>
+        </section>
+
+        <!-- Divider -->
+        <div style="display: flex; justify-content: center; margin: 1.5rem 0; padding: 0 1rem;">
+            <div style="width: 80%; max-width: 1200px; height: 1px; background: var(--accent);"></div>
+        </div>
+
+        <!-- Tickers Table -->
+        <section class="table-section">
+            <div class="container">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <div class="section-label" style="margin-bottom: 0;">TICKERS</div>
+                    {% if stats %}
+                    <div style="display: flex; gap: 2rem; font-size: 0.875rem; color: var(--text-muted);">
+                        <div>Total: <span style="color: var(--text-primary); font-weight: 600;">{{ stats.total }}</span></div>
+                        <div>With Prices: <span style="color: var(--text-primary); font-weight: 600;">{{ stats.with_prices }}</span></div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Filters -->
+                <div class="filters" x-show="true">
+                    <select x-model="filter" name="filter" 
+                            hx-get="/api/ticker-table-html"
+                            hx-trigger="change"
+                            hx-target="#ticker-table"
+                            hx-include="[name='filter'],[name='sector'],[name='industry'],[name='search']">
+                        <option value="all">All Statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="complete">Complete</option>
+                        <option value="failed">Failed</option>
+                    </select>
+                    <select x-model="sectorFilter" name="sector"
+                            hx-get="/api/ticker-table-html"
+                            hx-trigger="change"
+                            hx-target="#ticker-table"
+                            hx-include="[name='filter'],[name='sector'],[name='industry'],[name='search']">
+                        <option value="all">All Sectors</option>
+                        {% for sector in tickers | map(attribute='sector') | unique | sort %}
+                        {% if sector %}<option value="{{ sector }}">{{ sector }}</option>{% endif %}
+                        {% endfor %}
+                    </select>
+                    <select x-model="industryFilter" name="industry"
+                            hx-get="/api/ticker-table-html"
+                            hx-trigger="change"
+                            hx-target="#ticker-table"
+                            hx-include="[name='filter'],[name='sector'],[name='industry'],[name='search']">
+                        <option value="all">All Industries</option>
+                        {% for industry in tickers | map(attribute='industry') | unique | sort %}
+                        {% if industry %}<option value="{{ industry }}">{{ industry }}</option>{% endif %}
+                        {% endfor %}
+                    </select>
+                    <input type="text" 
+                           placeholder="Search symbol..." 
+                           x-model="search" 
+                           name="search"
+                           hx-get="/api/ticker-table-html"
+                           hx-trigger="keyup changed delay:500ms"
+                           hx-target="#ticker-table"
+                           hx-include="[name='filter'],[name='sector'],[name='industry'],[name='search']">
+                    <span style="color: var(--text-muted); font-size: 0.875rem; margin-left: auto;">{{ tickers | length }} tickers</span>
+                </div>
+
+                <!-- HTMX: Polling every 2 seconds + refresh on pipeline activity -->
+                <div id="ticker-table"
+                     hx-get="/api/ticker-table-html"
+                     hx-trigger="load, every 2000ms, refreshTickerTable from:body"
+                     hx-include="[name='filter'],[name='sector'],[name='industry'],[name='search']">
+                    {% include 'partials/ticker_table.html' %}
+                </div>
+            </div>
+        </section>
+
+        <footer style="
+            margin-top: 3rem;
+            padding: 2rem 3rem;
+            border-top: 1px solid var(--border);
+        ">
+            <p style="font-size: 0.75rem; color: var(--text-muted); max-width: 800px; margin: 0 auto 1rem; line-height: 1.8; text-align: center;">
+                EDUCATIONAL TOOL ONLY. NOT INVESTMENT ADVICE. NO WARRANTIES OR GUARANTEES. USE AT YOUR OWN RISK.
+                Open-source code provided as-is with no guarantee of accuracy, completeness, or fitness for any purpose.
+                Data sourced by user from Yahoo Finance may be incomplete or inaccurate. User assumes all risk and consequences.
+            </p>
+            <div style="text-align: center; color: var(--text-muted); font-size: 0.875rem;">
+                RS Dashboard •
+                <a href="https://buymeacoffee.com/thatfintechguy"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   style="color: var(--accent); text-decoration: none;">
+                    ☕
+                </a>
+            </div>
+        </footer>
+
+        <!-- Modals remain the same but use simpler Alpine.js -->
+        <!-- Add Tickers Modal -->
+        <div id="add-modal" class="modal" x-show="showAddModal" @click.self="showAddModal = false" x-cloak style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Add Tickers</h2>
+                    <button class="close-btn" @click="showAddModal = false">✕</button>
+                </div>
+                <form hx-post="/api/upload" 
+                      hx-target="#pipeline-stages"
+                      hx-encoding="multipart/form-data"
+                      @htmx:after-request="showAddModal = false">
+                    <div class="modal-body">
+                        <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+                            <input type="file" id="fileInput" name="file" accept=".csv" style="display: none;">
+                            <span>📄 Drop CSV or click to browse</span>
+                        </div>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 1rem;">
+                            CSV must have a 'ticker' or 'symbol' column. Existing tickers will be skipped.
+                        </p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" @click="showAddModal = false">Cancel</button>
+                        <button type="submit" class="btn-primary">Add Tickers</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Chart Modal -->
+        <div id="chart-modal" class="modal" x-show="showChartModal" @click.self="showChartModal = false" x-cloak style="display: none;">
+            <div class="modal-content" style="max-width: 1200px; width: 90vw;">
+                <div class="modal-header">
+                    <h2><span x-text="chartSymbol"></span> - <span x-text="chartName" style="color: var(--text-muted); font-weight: 400;"></span></h2>
+                    <button class="close-btn" @click="showChartModal = false">✕</button>
+                </div>
+                <div class="modal-body" style="padding: 2rem;">
+                    <div style="position: relative; height: 500px;">
+                        <canvas id="detailChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Modal -->
+        <div id="advanced-modal" class="modal" x-show="showAdvanced" @click.self="showAdvanced = false" x-cloak style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Advanced Options</h2>
+                    <button class="close-btn" @click="showAdvanced = false">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="advanced-section">
+                        <h4>Recalculate All</h4>
+                        <p style="color: var(--text-muted);">Delete sector/industry returns and RS scores, then recalculate from prices.</p>
+                        <button class="btn-primary"
+                                hx-post="/api/recalculate-all"
+                                hx-target="#pipeline-stages"
+                                hx-confirm="Recalculate all returns and RS scores from prices?"
+                                @htmx:after-request="showAdvanced = false"
+                                style="width: 100%;">
+                            Recalculate All
+                        </button>
+                    </div>
+                    <div class="advanced-section">
+                        <h4 style="color: var(--red);">Clear RS History</h4>
+                        <p style="color: var(--text-muted);">Delete all RS scores and recalculate for backfill days (keeps prices).</p>
+                        <button class="btn-danger"
+                                hx-post="/api/clear-rs-history"
+                                hx-target="#pipeline-stages"
+                                hx-confirm="Clear RS history and recalculate?"
+                                @htmx:after-request="showAdvanced = false"
+                                style="width: 100%;">
+                            Clear RS History
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HTMX event listener to refresh table after POST requests -->
+    <script>
+        document.body.addEventListener('htmx:afterRequest', function(evt) {
+            if (evt.detail.requestConfig.verb === 'POST') {
+                htmx.trigger('#ticker-table', 'load');
+            }
+        });
+        
+        // Render dual-axis sparklines (price + RS)
+        function renderSparklines() {
+            document.querySelectorAll('.dual-sparkline').forEach(canvas => {
+                const prices = JSON.parse(canvas.dataset.prices || '[]');
+                const rsScores = JSON.parse(canvas.dataset.rs || '[]');
+                
+                if (prices.length === 0) return;
+                
+                const ctx = canvas.getContext('2d');
+                const width = canvas.width;
+                const height = canvas.height;
+                const padding = 2;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, width, height);
+                
+                // Normalize prices to canvas height (use bottom 60% for prices)
+                const priceHeight = height * 0.6;
+                const priceMin = Math.min(...prices);
+                const priceMax = Math.max(...prices);
+                const priceRange = priceMax - priceMin || 1;
+                
+                const pricePoints = prices.map((p, i) => ({
+                    x: padding + (i / (prices.length - 1)) * (width - padding * 2),
+                    y: height - padding - ((p - priceMin) / priceRange) * (priceHeight - padding * 2)
+                }));
+                
+                // Draw price line (blue)
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                pricePoints.forEach((pt, i) => {
+                    if (i === 0) ctx.moveTo(pt.x, pt.y);
+                    else ctx.lineTo(pt.x, pt.y);
+                });
+                ctx.stroke();
+                
+                // Draw RS line (orange) if available - use top 60% for RS
+                if (rsScores.length > 0) {
+                    const rsHeight = height * 0.6;
+                    const rsMin = Math.min(...rsScores);
+                    const rsMax = Math.max(...rsScores);
+                    const rsRange = rsMax - rsMin || 1;
+                    
+                    // Align RS data points with price data points (RS may have fewer points)
+                    const rsPoints = rsScores.map((rs, i) => {
+                        // Map RS index to price index proportionally
+                        const priceIndex = Math.floor((i / (rsScores.length - 1)) * (prices.length - 1));
+                        return {
+                            x: pricePoints[priceIndex].x,
+                            y: padding + (1 - ((rs - rsMin) / rsRange)) * (rsHeight - padding * 2)
+                        };
+                    });
+                    
+                    ctx.strokeStyle = '#f59e0b';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    rsPoints.forEach((pt, i) => {
+                        if (i === 0) ctx.moveTo(pt.x, pt.y);
+                        else ctx.lineTo(pt.x, pt.y);
+                    });
+                    ctx.stroke();
+                }
+            });
+        }
+        
+        // Render on load and after HTMX updates
+        document.addEventListener('DOMContentLoaded', renderSparklines);
+        document.body.addEventListener('htmx:afterSwap', renderSparklines);
+        
+        // Load and render detailed chart with candlesticks + RS overlay
+        let detailChartInstance = null;
+        
+        window.loadChartData = async function(symbol) {
+            try {
+                const response = await fetch(`/api/chart/ticker/${symbol}`);
+                const data = await response.json();
+                renderDetailChart(data);
+            } catch (error) {
+                console.error('Failed to load chart data:', error);
+            }
+        };
+        
+        function renderDetailChart(data) {
+            // Destroy previous chart if exists
+            if (detailChartInstance) {
+                detailChartInstance.destroy();
+                detailChartInstance = null;
+            }
+
+            const { dates, ohlc, rs_scores } = data;
+            if (!dates || dates.length === 0) return;
+
+            const canvas = document.getElementById('detailChart');
+            const ctx = canvas.getContext('2d');
+
+            // Clear any existing chart instance from canvas
+            Chart.getChart(canvas)?.destroy();
+
+            // Prepare OHLC candlestick data (convert dates to timestamps)
+            const ohlcData = dates.map((date, i) => ({
+                x: luxon.DateTime.fromISO(date).valueOf(),
+                o: ohlc[i].o,
+                h: ohlc[i].h,
+                l: ohlc[i].l,
+                c: ohlc[i].c
+            }));
+
+            // Prepare RS line data
+            const rsLineData = dates.map((date, i) => ({
+                x: luxon.DateTime.fromISO(date).valueOf(),
+                y: rs_scores[i]
+            })).filter(d => d.y !== null);
+
+            // Create Chart.js chart with candlestick + RS overlay
+            detailChartInstance = new Chart(ctx, {
+                type: 'candlestick',
+                data: {
+                    datasets: [{
+                        label: 'Price',
+                        data: ohlcData,
+                        yAxisID: 'y',
+                        color: {
+                            up: '#10b981',
+                            down: '#ef4444',
+                            unchanged: '#6b7280'
+                        }
+                    }, {
+                        label: 'RS Score',
+                        type: 'line',
+                        data: rsLineData,
+                        yAxisID: 'y1',
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: '#9ca3af',
+                                font: { size: 14, weight: '600' },
+                                padding: 20,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#1a1b1f',
+                            titleColor: '#f4f4f5',
+                            bodyColor: '#9ca3af',
+                            borderColor: '#2a2b2f',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.dataset.label === 'Price') {
+                                        const data = context.raw;
+                                        return [
+                                            `Open: $${data.o.toFixed(2)}`,
+                                            `High: $${data.h.toFixed(2)}`,
+                                            `Low: $${data.l.toFixed(2)}`,
+                                            `Close: $${data.c.toFixed(2)}`
+                                        ];
+                                    } else {
+                                        return `RS: ${context.parsed.y.toFixed(1)}`;
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                displayFormats: {
+                                    day: 'MMM d'
+                                }
+                            },
+                            grid: {
+                                color: '#1f2023'
+                            },
+                            ticks: {
+                                color: '#6b7280',
+                                font: { size: 11 }
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Price ($)',
+                                color: '#10b981',
+                                font: { size: 12 }
+                            },
+                            grid: {
+                                color: '#1f2023'
+                            },
+                            ticks: {
+                                color: '#6b7280',
+                                font: { size: 11 },
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                }
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'RS Score',
+                                color: '#f59e0b',
+                                font: { size: 12 }
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            ticks: {
+                                color: '#f59e0b',
+                                font: { size: 11 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Table sorting functionality
+        let sortState = {};
+        
+        function sortTable(columnIndex) {
+            const table = document.querySelector('table tbody');
+            if (!table) return;
+            
+            const rows = Array.from(table.querySelectorAll('tr'));
+            const header = document.querySelectorAll('th')[columnIndex];
+            
+            // Toggle sort direction
+            const isAscending = sortState[columnIndex] !== true;
+            sortState = { [columnIndex]: isAscending };
+            
+            // Update header indicators
+            document.querySelectorAll('th .sort-indicator').forEach(el => {
+                el.textContent = '⇅';
+                el.style.opacity = '0.5';
+            });
+            
+            if (header) {
+                header.classList.add('sorted');
+                const indicator = header.querySelector('.sort-indicator');
+                if (indicator) {
+                    indicator.textContent = isAscending ? '↑' : '↓';
+                    indicator.style.opacity = '1';
+                }
+            }
+            
+            // Sort rows
+            rows.sort((a, b) => {
+                const aCell = a.cells[columnIndex];
+                const bCell = b.cells[columnIndex];
+                
+                let aVal = aCell.textContent.trim();
+                let bVal = bCell.textContent.trim();
+                
+                // Try to parse as number
+                const aNum = parseFloat(aVal);
+                const bNum = parseFloat(bVal);
+                
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return isAscending ? aNum - bNum : bNum - aNum;
+                }
+                
+                // String comparison
+                return isAscending 
+                    ? aVal.localeCompare(bVal)
+                    : bVal.localeCompare(aVal);
+            });
+            
+            // Re-append sorted rows
+            rows.forEach(row => table.appendChild(row));
+        }
+        
+    </script>
+</body>
+</html>

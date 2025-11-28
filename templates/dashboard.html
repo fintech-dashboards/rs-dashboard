@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RS Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Chart.js 3.x for financial charts (v4 has compatibility issues with financial plugin) -->
+    <script src="https://cdn.jsdelivr.net/npm/luxon@1.28.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.2.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1/dist/chartjs-chart-financial.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-primary: #08090a;
+            --bg-secondary: #0d0e10;
+            --bg-card: #131417;
+            --bg-elevated: #1a1b1f;
+            --text-primary: #f4f4f5;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --accent: #d97706;
+            --accent-dim: rgba(217, 119, 6, 0.15);
+            --border: #1f2023;
+            --border-light: #2a2b2f;
+            --green: #10b981;
+            --red: #ef4444;
+            
+            /* Font sizes */
+            --fs-xs: 0.75rem;
+            --fs-sm: 0.875rem;
+            --fs-base: 1rem;
+            --fs-lg: 1.125rem;
+            --fs-xl: 1.25rem;
+            --fs-2xl: 1.5rem;
+            --fs-3xl: 2rem;
+        }
+
+        [x-cloak] { display: none !important; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+            font-size: var(--fs-base);
+            -webkit-font-smoothing: antialiased;
+            letter-spacing: -0.01em;
+            min-height: 100vh;
+        }
+
+        ::selection {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        /* Header */
+        header {
+            padding: 1.5rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            text-decoration: none;
+        }
+
+        .logo span {
+            color: var(--accent);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            margin-left: auto;
+        }
+
+        .header-stats {
+            font-size: 1rem;
+            color: var(--text-muted);
+        }
+
+        .header-stats strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .admin-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 1rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            transition: color 0.3s;
+        }
+
+        .admin-link:hover {
+            color: var(--text-primary);
+        }
+
+        /* Buy Me a Coffee */
+        .bmc-button {
+            display: inline-block;
+            padding: 0.5rem 1.25rem;
+            background: var(--accent);
+            color: var(--bg-primary);
+            font-size: 0.9375rem;
+            font-weight: 600;
+            border-radius: 6px;
+            text-decoration: none;
+            box-shadow: 0 2px 8px rgba(217, 119, 6, 0.3);
+        }
+
+        .bmc-button:hover {
+            opacity: 0.9;
+        }
+
+        .bmc-button.icon-only {
+            background: transparent;
+            color: var(--accent);
+            font-size: 1.5rem;
+            padding: 0.25rem 0.5rem;
+            box-shadow: none;
+        }
+
+        .bmc-button.icon-only:hover {
+            opacity: 0.8;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Main Content */
+        main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+        }
+
+        .breadcrumb a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb span {
+            color: var(--text-muted);
+        }
+
+        /* Section Header */
+        .section-header {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .section-subtitle {
+            font-size: 0.9375rem;
+            color: var(--text-muted);
+        }
+
+        /* Table Header */
+        .table-header {
+            display: grid;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 0.5rem;
+        }
+        
+        .table-header > div[onclick] {
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            transition: color 0.2s;
+        }
+        
+        .table-header > div[onclick]:hover {
+            color: var(--accent);
+        }
+        
+        .sort-indicator {
+            display: inline-block;
+            margin-left: 0.5rem;
+            opacity: 0.5;
+            font-size: 0.75rem;
+            pointer-events: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        .table-header > div[onclick].sorted .sort-indicator {
+            opacity: 1;
+            color: var(--accent);
+        }
+
+        .table-header.sectors-header {
+            grid-template-columns: 1fr 80px 100px 100px 140px;
+            gap: 1.5rem;
+        }
+
+        .table-header.stocks-header {
+            grid-template-columns: 120px 1fr 100px 100px 140px;
+            gap: 1.5rem;
+        }
+
+        /* Data Row */
+        .data-row {
+            display: grid;
+            align-items: center;
+            padding: 1.25rem 1.5rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: inherit;
+        }
+
+
+        .data-row.sectors-row {
+            grid-template-columns: 1fr 80px 100px 100px 140px;
+            gap: 1.5rem;
+        }
+
+        .data-row.stocks-row {
+            grid-template-columns: 120px 1fr 100px 100px 140px;
+            gap: 1.5rem;
+        }
+
+        .row-name {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .row-secondary {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-top: 0.125rem;
+        }
+
+        /* Strength Badge */
+        .strength-badge {
+            text-align: center;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9375rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .strength-high {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--green);
+        }
+
+        .strength-mid {
+            background: rgba(217, 119, 6, 0.15);
+            color: var(--accent);
+        }
+
+        .strength-low {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--red);
+        }
+
+        .strength-none {
+            background: var(--bg-card);
+            color: var(--text-muted);
+        }
+
+        /* Count */
+        .count {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9375rem;
+        }
+
+        /* Percentile Badge */
+        .percentile-badge {
+            display: inline-block;
+            padding: 0.375rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .pct-high {
+            background: var(--green);
+            color: white;
+        }
+
+        .pct-mid {
+            background: var(--accent);
+            color: white;
+        }
+
+        .pct-low {
+            background: var(--bg-card);
+            color: var(--text-muted);
+        }
+
+        /* Sparkline Container */
+        .sparkline-container {
+            display: flex;
+            justify-content: center;
+        }
+
+        .sparkline {
+            width: 120px;
+            height: 40px;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        footer a.support-link {
+            color: var(--accent);
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+
+        footer a.support-link:hover {
+            opacity: 0.8;
+            text-decoration: underline;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1100px;
+            max-height: 90vh;
+            overflow: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-header h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.75rem;
+            cursor: pointer;
+            padding: 0;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .close-btn:hover {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+        }
+        
+        .icon-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 0.375rem;
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .icon-btn:hover {
+            background: var(--bg-elevated);
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .modal-body {
+            padding: 2rem;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 0.75rem;
+            padding: 1.5rem 2rem;
+            border-top: 1px solid var(--border);
+            justify-content: center;
+        }
+
+        .time-btn {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 0.625rem 1.25rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .time-btn:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border-color: var(--accent);
+        }
+
+        .time-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        canvas {
+            max-height: 500px !important;
+        }
+    </style>
+</head>
+<body>
+    {% include 'partials/navbar.html' with context %}
+
+    <!-- Main Content -->
+    <main>
+        {% if view == "sectors" %}
+            <!-- Sectors View -->
+            <div class="section-header">
+                <h1 class="section-title">Sectors</h1>
+                <p class="section-subtitle">% of stocks with RS in top 10% (percentile ≥ 90)</p>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <div class="table-header sectors-header" style="flex: 1; margin: 0; grid-template-columns: 1fr 80px 100px 100px 140px;">
+                    <div onclick="sortDashboardTable(0, 'sectors-row')" style="cursor: pointer;">Sector <span class="sort-indicator">⇅</span></div>
+                    <div style="text-align: center;">Chart</div>
+                    <div onclick="sortDashboardTable(2, 'sectors-row')" style="text-align: center; cursor: pointer;">RS Score <span class="sort-indicator">⇅</span></div>
+                    <div onclick="sortDashboardTable(3, 'sectors-row')" style="text-align: center; cursor: pointer;">Percentile <span class="sort-indicator">⇅</span></div>
+                    <div style="text-align: center;">Trend (12W)</div>
+                </div>
+                <button onclick="showCompareChart()" style="margin-left: 1.5rem; padding: 0.625rem 1.25rem; background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 500; transition: all 0.2s;" onmouseover="this.style.background='var(--accent)'; this.style.color='white'" onmouseout="this.style.background='var(--accent-dim)'; this.style.color='var(--accent)'">
+                    Compare All
+                </button>
+            </div>
+
+            {% for sector in sectors %}
+            <div class="data-row sectors-row" style="cursor: pointer;" onclick="window.location='/sector/{{ sector.sector | urlencode }}'">
+                <div class="row-name">{{ sector.sector }}</div>
+                <div style="text-align: center;">
+                    <button class="icon-btn"
+                            onclick="event.stopPropagation(); showSectorChart('{{ sector.sector }}')"
+                            title="View RS trend chart">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </button>
+                </div>
+                <div class="strength-badge {% if sector.percentile >= 70 %}strength-high{% elif sector.percentile >= 40 %}strength-mid{% else %}strength-low{% endif %}">
+                    {{ "%.2f"|format(sector.avg_rs) }}
+                </div>
+                <div class="percentile-badge {% if sector.percentile >= 70 %}pct-high{% elif sector.percentile >= 40 %}pct-mid{% else %}pct-low{% endif %}">
+                    {{ sector.percentile | int }}th
+                </div>
+                <div class="sparkline-container">
+                    <canvas class="sparkline" data-values="{{ sparklines.get(sector.sector, [0]*12) | join(',') }}" data-trend="{% if sparklines.get(sector.sector, [0])[-1] > sparklines.get(sector.sector, [0])[0] %}up{% elif sparklines.get(sector.sector, [0])[-1] < sparklines.get(sector.sector, [0])[0] %}down{% else %}flat{% endif %}"></canvas>
+                </div>
+            </div>
+            {% endfor %}
+
+        {% elif view == "industries" %}
+            <!-- Industries View -->
+            <div class="breadcrumb">
+                <a href="/dashboard">Sectors</a>
+                <span>›</span>
+                <span>{{ current_sector }}</span>
+            </div>
+
+            <div class="section-header">
+                <h1 class="section-title">{{ current_sector }}</h1>
+                <p class="section-subtitle">Industries ranked by relative strength</p>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <div class="table-header sectors-header" style="flex: 1; margin: 0; grid-template-columns: 1fr 80px 100px 100px 140px;">
+                    <div onclick="sortDashboardTable(0, 'sectors-row')" style="cursor: pointer;">Industry <span class="sort-indicator">⇅</span></div>
+                    <div style="text-align: center;">Chart</div>
+                    <div onclick="sortDashboardTable(2, 'sectors-row')" style="text-align: center; cursor: pointer;">RS Score <span class="sort-indicator">⇅</span></div>
+                    <div onclick="sortDashboardTable(3, 'sectors-row')" style="text-align: center; cursor: pointer;">Percentile <span class="sort-indicator">⇅</span></div>
+                    <div style="text-align: center;">Trend (12W)</div>
+                </div>
+                <button onclick="showIndustryCompareChart('{{ current_sector }}')" style="margin-left: 1.5rem; padding: 0.625rem 1.25rem; background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 500; transition: all 0.2s;" onmouseover="this.style.background='var(--accent)'; this.style.color='white'" onmouseout="this.style.background='var(--accent-dim)'; this.style.color='var(--accent)'">
+                    Compare All
+                </button>
+            </div>
+
+            {% for ind in industries %}
+            <div class="data-row sectors-row" style="cursor: pointer;" onclick="window.location='/industry/{{ ind.industry | urlencode }}'">
+                <div class="row-name">{{ ind.industry }}</div>
+                <div style="text-align: center;">
+                    <button class="icon-btn"
+                            onclick="event.stopPropagation(); showIndustryChart('{{ ind.industry }}')"
+                            title="View RS trend chart">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </button>
+                </div>
+                <div class="strength-badge {% if ind.percentile >= 70 %}strength-high{% elif ind.percentile >= 40 %}strength-mid{% else %}strength-low{% endif %}">
+                    {{ "%.2f"|format(ind.rs_score) }}
+                </div>
+                <div class="percentile-badge {% if ind.percentile >= 70 %}pct-high{% elif ind.percentile >= 40 %}pct-mid{% else %}pct-low{% endif %}">
+                    {{ ind.percentile | int }}th
+                </div>
+                <div class="sparkline-container">
+                    <canvas class="sparkline" data-values="{{ sparklines.get(ind.industry, [0]*12) | join(',') }}"></canvas>
+                </div>
+            </div>
+            {% endfor %}
+
+        {% elif view == "stocks" %}
+            <!-- Stocks View -->
+            <div class="breadcrumb">
+                <a href="/dashboard">Sectors</a>
+                <span>›</span>
+                <a href="/sector/{{ current_sector | urlencode }}">{{ current_sector }}</a>
+                <span>›</span>
+                <span>{{ current_industry }}</span>
+            </div>
+
+            <div class="section-header">
+                <h1 class="section-title">{{ current_industry }}</h1>
+                <p class="section-subtitle">Stocks ranked by RS score</p>
+            </div>
+
+            <div class="table-header stocks-header" style="display: grid; grid-template-columns: 80px 1fr 50px 100px 100px 120px; gap: 1rem; padding: 1rem;">
+                <div onclick="sortDashboardTable(0, 'stocks-row')" style="cursor: pointer;">Symbol <span class="sort-indicator">⇅</span></div>
+                <div onclick="sortDashboardTable(1, 'stocks-row')" style="cursor: pointer;">Name <span class="sort-indicator">⇅</span></div>
+                <div style="text-align: center;">Chart</div>
+                <div onclick="sortDashboardTable(3, 'stocks-row')" style="text-align: center; cursor: pointer;">RS Score <span class="sort-indicator">⇅</span></div>
+                <div onclick="sortDashboardTable(4, 'stocks-row')" style="text-align: center; cursor: pointer;">Percentile <span class="sort-indicator">⇅</span></div>
+                <div style="text-align: center;">RS Score Trend (12W)</div>
+            </div>
+
+            {% for stock in stocks %}
+            <div class="data-row stocks-row" style="display: grid; grid-template-columns: 80px 1fr 50px 100px 100px 120px; gap: 1rem; padding: 1rem; align-items: center;">
+                <div>
+                    <a href="https://finance.yahoo.com/quote/{{ stock.symbol }}" 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       style="color: var(--accent); text-decoration: none; font-weight: 600;">
+                        {{ stock.symbol }}
+                    </a>
+                </div>
+                <div style="color: var(--text-muted); font-size: 0.875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ stock.name[:40] }}</div>
+                <div style="text-align: center;">
+                    <button class="icon-btn" 
+                            onclick="showStockChart('{{ stock.symbol }}', '{{ stock.name }}')"
+                            title="View detailed chart">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </button>
+                </div>
+                <div style="text-align: center; font-weight: 600; font-family: 'JetBrains Mono', monospace;">{{ "%.1f"|format(stock.rs_score) }}</div>
+                <div style="text-align: center;">
+                    <span class="percentile-badge {% if stock.rs_percentile >= 90 %}pct-high{% elif stock.rs_percentile >= 70 %}pct-mid{% else %}pct-low{% endif %}">
+                        {{ stock.rs_percentile }}th
+                    </span>
+                </div>
+                <div style="display: flex; justify-content: center;">
+                    <canvas class="sparkline" width="120" height="40" data-values="{{ sparklines.get(stock.symbol, [0]*12) | join(',') }}"></canvas>
+                </div>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </main>
+
+    <footer style="padding: 2rem 3rem; border-top: 1px solid var(--border); max-width: 1400px; margin: 0 auto;">
+        <p style="font-size: 0.75rem; color: var(--text-muted); max-width: 800px; margin: 0 auto 1rem; line-height: 1.8; text-align: center;">
+            EDUCATIONAL TOOL ONLY. NOT INVESTMENT ADVICE. NO WARRANTIES OR GUARANTEES. USE AT YOUR OWN RISK.
+            Open-source code provided as-is with no guarantee of accuracy, completeness, or fitness for any purpose.
+            Data sourced by user from Yahoo Finance may be incomplete or inaccurate. User assumes all risk and consequences.
+        </p>
+        <div style="text-align: center; color: var(--text-muted); font-size: 0.875rem;">
+            RS Dashboard •
+            <a href="https://buymeacoffee.com/thatfintechguy"
+               target="_blank"
+               rel="noopener noreferrer"
+               style="color: var(--accent); text-decoration: none;">
+                ☕
+            </a>
+        </div>
+    </footer>
+
+    <!-- Chart Modal -->
+    <div id="chartModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="chartTitle">Sector Comparison</h2>
+                <button onclick="closeChart()" class="close-btn">✕</button>
+            </div>
+            <div class="modal-body">
+                <canvas id="chartCanvas"></canvas>
+            </div>
+            <div class="modal-footer">
+                <button onclick="loadCurrentCompareChart(30)" class="time-btn">30 Days</button>
+                <button onclick="loadCurrentCompareChart(90)" class="time-btn active">90 Days</button>
+                <button onclick="loadCurrentCompareChart(180)" class="time-btn">180 Days</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Chart Modal -->
+    <div id="stockChartModal" class="modal">
+        <div class="modal-content" style="max-width: 1200px; width: 90vw;">
+            <div class="modal-header">
+                <h2 id="stockChartTitle">Stock Chart</h2>
+                <button onclick="closeStockChart()" class="close-btn">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="position: relative; height: 500px;">
+                    <canvas id="stockChartCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sparkline Script -->
+    <script>
+        // Mini sparkline renderer using canvas
+        function renderSparklines() {
+            document.querySelectorAll('.sparkline').forEach(canvas => {
+                const values = canvas.dataset.values.split(',').map(Number);
+                const trend = canvas.dataset.trend || 'mid';
+
+                const ctx = canvas.getContext('2d');
+                const width = canvas.width = 120;
+                const height = canvas.height = 40;
+
+                if (values.length === 0 || values.every(v => v === 0)) {
+                    return;
+                }
+
+                const max = Math.max(...values);
+                const min = Math.min(...values);
+                const range = max - min || 1;
+
+                // Color based on trend
+                let color;
+                if (trend === 'up' || trend === 'high') {
+                    color = '#10b981';
+                } else if (trend === 'down' || trend === 'low') {
+                    color = '#94a3b8';
+                } else if (trend === 'mid') {
+                    color = '#d97706';
+                } else {
+                    color = '#64748b';
+                }
+
+                // Draw line
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                ctx.beginPath();
+                values.forEach((value, i) => {
+                    const x = (i / (values.length - 1)) * width;
+                    const y = height - ((value - min) / range) * (height - 8) - 4;
+
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                ctx.stroke();
+
+                // Fill area under line
+                ctx.lineTo(width, height);
+                ctx.lineTo(0, height);
+                ctx.closePath();
+                ctx.fillStyle = color + '15';
+                ctx.fill();
+            });
+        }
+
+        // Render on load
+        document.addEventListener('DOMContentLoaded', renderSparklines);
+
+        // Chart functionality
+        let currentChart = null;
+        let currentDays = 90;
+        let currentCompareType = 'sectors'; // 'sectors' or 'industries'
+
+        function loadCurrentCompareChart(days) {
+            if (currentCompareType === 'industries') {
+                loadIndustryCompareChart(days);
+            } else {
+                loadCompareChart(days);
+            }
+        }
+
+        function showCompareChart() {
+            currentCompareType = 'sectors';
+            document.getElementById('chartTitle').textContent = 'Sector Comparison';
+            document.getElementById('chartModal').style.display = 'flex';
+            loadCompareChart(90);
+        }
+
+        function closeChart() {
+            document.getElementById('chartModal').style.display = 'none';
+            if (currentChart) {
+                currentChart.destroy();
+                currentChart = null;
+            }
+        }
+
+        async function loadCompareChart(days) {
+            currentDays = days;
+
+            // Update active button
+            document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            try {
+                const response = await fetch(`/api/chart/all-sectors?days=${days}`);
+                const data = await response.json();
+
+                if (currentChart) {
+                    currentChart.destroy();
+                }
+
+                const colors = [
+                    '#d97706', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6',
+                    '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'
+                ];
+
+                const datasets = [];
+                let colorIndex = 0;
+
+                for (const [sector, sectorData] of Object.entries(data.sectors)) {
+                    if (sectorData.dates && sectorData.dates.length > 0) {
+                        const color = colors[colorIndex % colors.length];
+                        datasets.push({
+                            label: sector,
+                            data: sectorData.strength_pct,
+                            borderColor: color,
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            tension: 0.5,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            cubicInterpolationMode: 'monotone',
+                            _originalColor: color
+                        });
+                        colorIndex++;
+                    }
+                }
+
+                const firstSector = Object.values(data.sectors)[0];
+                const labels = firstSector ? firstSector.dates : [];
+
+                const ctx = document.getElementById('chartCanvas').getContext('2d');
+                currentChart = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels, datasets },
+                    options: {
+                        animation: false,
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        aspectRatio: 2.2,
+                        interaction: {
+                            mode: 'dataset',
+                            intersect: false
+                        },
+                        onHover: (event, activeElements, chart) => {
+                            if (activeElements.length > 0) {
+                                const activeIndex = activeElements[0].datasetIndex;
+                                // Highlight active line, fade others
+                                chart.data.datasets.forEach((ds, i) => {
+                                    if (i === activeIndex) {
+                                        ds.borderWidth = 4;
+                                        ds.borderColor = ds._originalColor;
+                                    } else {
+                                        ds.borderWidth = 1.5;
+                                        ds.borderColor = ds._originalColor + '70';
+                                    }
+                                });
+                                chart.update('none');
+                            } else {
+                                // Reset all
+                                chart.data.datasets.forEach((ds) => {
+                                    ds.borderWidth = 2;
+                                    ds.borderColor = ds._originalColor;
+                                });
+                                chart.update('none');
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    color: '#f4f4f5',
+                                    padding: 15,
+                                    font: { size: 12 }
+                                }
+                            },
+                            tooltip: {
+                                enabled: false
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    color: '#1f2023',
+                                    drawBorder: false
+                                },
+                                ticks: {
+                                    color: '#6b7280',
+                                    maxRotation: 45
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Strength %',
+                                    color: '#9ca3af',
+                                    font: { size: 13, weight: 'bold' }
+                                },
+                                grid: {
+                                    color: '#1f2023',
+                                    drawBorder: false
+                                },
+                                ticks: {
+                                    color: '#6b7280'
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading chart:', error);
+            }
+        }
+
+        // Industry compare chart
+        let currentIndustrySector = null;
+        let currentIndustryDays = 90;
+
+        function showIndustryCompareChart(sector) {
+            currentCompareType = 'industries';
+            currentIndustrySector = sector;
+            document.getElementById('chartModal').style.display = 'flex';
+            document.getElementById('chartTitle').textContent = `${sector} - Industry Comparison`;
+            loadIndustryCompareChart(90);
+        }
+
+        async function loadIndustryCompareChart(days) {
+            currentIndustryDays = days;
+
+            // Update active button
+            document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            try {
+                const response = await fetch(`/api/chart/all-industries?sector=${encodeURIComponent(currentIndustrySector)}&days=${days}`);
+                const data = await response.json();
+
+                if (currentChart) {
+                    currentChart.destroy();
+                }
+
+                const colors = [
+                    '#d97706', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6',
+                    '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1',
+                    '#14b8a6', '#f43f5e', '#a855f7', '#22c55e', '#eab308'
+                ];
+
+                const datasets = [];
+                let colorIndex = 0;
+
+                for (const [industry, industryData] of Object.entries(data.industries)) {
+                    if (industryData.dates && industryData.dates.length > 0) {
+                        const color = colors[colorIndex % colors.length];
+                        datasets.push({
+                            label: industry,
+                            data: industryData.strength_pct,
+                            borderColor: color,
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            tension: 0.5,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            cubicInterpolationMode: 'monotone',
+                            _originalColor: color
+                        });
+                        colorIndex++;
+                    }
+                }
+
+                const firstIndustry = Object.values(data.industries)[0];
+                const labels = firstIndustry ? firstIndustry.dates : [];
+
+                const ctx = document.getElementById('chartCanvas').getContext('2d');
+                currentChart = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels, datasets },
+                    options: {
+                        animation: false,
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        aspectRatio: 2.2,
+                        interaction: {
+                            mode: 'dataset',
+                            intersect: false
+                        },
+                        onHover: (event, activeElements, chart) => {
+                            if (activeElements.length > 0) {
+                                const activeIndex = activeElements[0].datasetIndex;
+                                chart.data.datasets.forEach((ds, i) => {
+                                    if (i === activeIndex) {
+                                        ds.borderWidth = 4;
+                                        ds.borderColor = ds._originalColor;
+                                    } else {
+                                        ds.borderWidth = 1.5;
+                                        ds.borderColor = ds._originalColor + '70';
+                                    }
+                                });
+                                chart.update('none');
+                            } else {
+                                chart.data.datasets.forEach((ds) => {
+                                    ds.borderWidth = 2;
+                                    ds.borderColor = ds._originalColor;
+                                });
+                                chart.update('none');
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    color: '#f4f4f5',
+                                    padding: 15,
+                                    font: { size: 12 }
+                                }
+                            },
+                            tooltip: {
+                                enabled: false
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    color: '#1f2023',
+                                    drawBorder: false
+                                },
+                                ticks: {
+                                    color: '#6b7280',
+                                    maxRotation: 45
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'RS Score',
+                                    color: '#9ca3af',
+                                    font: { size: 13, weight: 'bold' }
+                                },
+                                grid: {
+                                    color: '#1f2023',
+                                    drawBorder: false
+                                },
+                                ticks: {
+                                    color: '#6b7280'
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading industry chart:', error);
+            }
+        }
+
+        // Stock chart functions
+        let stockChartInstance = null;
+        
+        async function showStockChart(symbol, name) {
+            document.getElementById('stockChartModal').style.display = 'flex';
+            document.getElementById('stockChartTitle').textContent = `${symbol} - ${name}`;
+            
+            try {
+                const response = await fetch(`/api/chart/ticker/${symbol}`);
+                const data = await response.json();
+                renderStockChart(data);
+            } catch (error) {
+                console.error('Failed to load stock chart:', error);
+            }
+        }
+        
+        function closeStockChart() {
+            document.getElementById('stockChartModal').style.display = 'none';
+            if (stockChartInstance) {
+                stockChartInstance.destroy();
+                stockChartInstance = null;
+            }
+        }
+
+        // Sector and Industry Chart Functions
+        async function showSectorChart(sectorName) {
+            document.getElementById('stockChartModal').style.display = 'flex';
+            document.getElementById('stockChartTitle').textContent = `${sectorName} - RS Trend`;
+
+            try {
+                const response = await fetch(`/api/chart/sector/${encodeURIComponent(sectorName)}`);
+                const data = await response.json();
+                renderSectorIndustryChart(data, sectorName, 'Sector');
+            } catch (error) {
+                console.error('Failed to load sector chart:', error);
+            }
+        }
+
+        async function showIndustryChart(industryName) {
+            document.getElementById('stockChartModal').style.display = 'flex';
+            document.getElementById('stockChartTitle').textContent = `${industryName} - RS Trend`;
+
+            try {
+                const response = await fetch(`/api/chart/industry/${encodeURIComponent(industryName)}`);
+                const data = await response.json();
+                renderSectorIndustryChart(data, industryName, 'Industry');
+            } catch (error) {
+                console.error('Failed to load industry chart:', error);
+            }
+        }
+
+        function renderSectorIndustryChart(data, name, type) {
+            if (stockChartInstance) {
+                stockChartInstance.destroy();
+                stockChartInstance = null;
+            }
+
+            const { dates, returns, benchmark_returns } = data;
+            if (!dates || dates.length === 0) return;
+
+            const canvas = document.getElementById('stockChartCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // Clear any existing chart
+            Chart.getChart(canvas)?.destroy();
+
+            // Convert to line chart data (cumulative returns baselined to 100)
+            const entityLine = dates.map((date, i) => ({
+                x: luxon.DateTime.fromISO(date).valueOf(),
+                y: returns[i]
+            })).filter(d => d.y !== null);
+
+            // SPY benchmark line
+            const benchmarkLine = dates.map((date, i) => ({
+                x: luxon.DateTime.fromISO(date).valueOf(),
+                y: benchmark_returns[i]
+            })).filter(d => d.y !== null);
+
+            stockChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: name,
+                        data: entityLine,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.2,
+                        fill: true
+                    }, {
+                        label: 'SPY (Benchmark)',
+                        data: benchmarkLine,
+                        borderColor: '#f59e0b',
+                        borderDash: [5, 5],
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: '#9ca3af',
+                                font: { size: 14, weight: '600' },
+                                padding: 20,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#1a1b1f',
+                            titleColor: '#f4f4f5',
+                            bodyColor: '#9ca3af',
+                            borderColor: '#2a2b2f',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.parsed.y;
+                                    const change = (val - 100).toFixed(2);
+                                    const prefix = change >= 0 ? '+' : '';
+                                    return `${context.dataset.label}: ${val.toFixed(2)} (${prefix}${change}%)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'week',
+                                displayFormats: { week: 'MMM d' }
+                            },
+                            grid: { color: '#1f2023' },
+                            ticks: { color: '#6b7280', font: { size: 11 } }
+                        },
+                        y: {
+                            position: 'left',
+                            title: { display: true, text: 'Cumulative Return (baselined to 100)', color: '#9ca3af', font: { size: 12 } },
+                            grid: { color: '#1f2023' },
+                            ticks: { color: '#6b7280', font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderStockChart(data) {
+            if (stockChartInstance) {
+                stockChartInstance.destroy();
+                stockChartInstance = null;
+            }
+
+            const { dates, ohlc, rs_scores } = data;
+            if (!dates || dates.length === 0) return;
+
+            const canvas = document.getElementById('stockChartCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // Clear any existing chart instance from canvas
+            Chart.getChart(canvas)?.destroy();
+
+            // Convert dates to timestamps for candlestick chart
+            const ohlcData = dates.map((date, i) => ({
+                x: luxon.DateTime.fromISO(date).valueOf(),
+                o: ohlc[i].o,
+                h: ohlc[i].h,
+                l: ohlc[i].l,
+                c: ohlc[i].c
+            }));
+
+            const rsLineData = dates.map((date, i) => ({
+                x: luxon.DateTime.fromISO(date).valueOf(),
+                y: rs_scores[i]
+            })).filter(d => d.y !== null);
+
+            stockChartInstance = new Chart(ctx, {
+                type: 'candlestick',
+                data: {
+                    datasets: [{
+                        label: 'Price',
+                        data: ohlcData,
+                        yAxisID: 'y',
+                        color: {
+                            up: '#10b981',
+                            down: '#ef4444',
+                            unchanged: '#6b7280'
+                        }
+                    }, {
+                        label: 'RS Score',
+                        type: 'line',
+                        data: rsLineData,
+                        yAxisID: 'y1',
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: '#9ca3af',
+                                font: { size: 14, weight: '600' },
+                                padding: 20,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#1a1b1f',
+                            titleColor: '#f4f4f5',
+                            bodyColor: '#9ca3af',
+                            borderColor: '#2a2b2f',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.dataset.label === 'Price') {
+                                        const data = context.raw;
+                                        return [
+                                            `Open: $${data.o.toFixed(2)}`,
+                                            `High: $${data.h.toFixed(2)}`,
+                                            `Low: $${data.l.toFixed(2)}`,
+                                            `Close: $${data.c.toFixed(2)}`
+                                        ];
+                                    } else {
+                                        return `RS: ${context.parsed.y.toFixed(1)}`;
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                displayFormats: {
+                                    day: 'MMM d'
+                                }
+                            },
+                            grid: {
+                                color: '#1f2023'
+                            },
+                            ticks: {
+                                color: '#6b7280',
+                                font: { size: 11 }
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Price ($)',
+                                color: '#10b981',
+                                font: { size: 12 }
+                            },
+                            grid: {
+                                color: '#1f2023'
+                            },
+                            ticks: {
+                                color: '#6b7280',
+                                font: { size: 11 },
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                }
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'RS Score',
+                                color: '#f59e0b',
+                                font: { size: 12 }
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            ticks: {
+                                color: '#f59e0b',
+                                font: { size: 11 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Close modal on escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeChart();
+                closeStockChart();
+            }
+        });
+
+        // Close modal on background click
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'chartModal') closeChart();
+            if (e.target.id === 'stockChartModal') closeStockChart();
+        });
+
+        // Dashboard table sorting - optimized
+        let dashboardSortState = {};
+        
+        function sortDashboardTable(columnIndex, tableClass) {
+            const rows = Array.from(document.querySelectorAll(`.data-row.${tableClass}`));
+            if (rows.length === 0) return;
+            
+            const headers = document.querySelectorAll(`.table-header.${tableClass} > div[onclick]`);
+            const header = headers[columnIndex];
+            
+            // Toggle sort direction
+            const key = `${tableClass}-${columnIndex}`;
+            const isAscending = dashboardSortState[key] !== true;
+            dashboardSortState[key] = isAscending;
+            
+            // Update header indicators
+            headers.forEach((h, idx) => {
+                h.classList.toggle('sorted', idx === columnIndex);
+                const indicator = h.querySelector('.sort-indicator');
+                if (indicator) {
+                    if (idx === columnIndex) {
+                        indicator.textContent = isAscending ? '↑' : '↓';
+                        indicator.style.opacity = '1';
+                    } else {
+                        indicator.textContent = '⇅';
+                        indicator.style.opacity = '0.5';
+                    }
+                }
+            });
+            
+            // Sort rows
+            rows.sort((a, b) => {
+                let aVal = a.children[columnIndex]?.textContent.trim() || '';
+                let bVal = b.children[columnIndex]?.textContent.trim() || '';
+                
+                // Remove % and parse as number
+                aVal = aVal.replace('%', '').trim();
+                bVal = bVal.replace('%', '').trim();
+                
+                const aNum = parseFloat(aVal);
+                const bNum = parseFloat(bVal);
+                
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return isAscending ? aNum - bNum : bNum - aNum;
+                }
+                
+                return isAscending 
+                    ? aVal.localeCompare(bVal)
+                    : bVal.localeCompare(aVal);
+            });
+            
+            // Re-append sorted rows in batch
+            const container = rows[0]?.parentElement;
+            if (container) {
+                const fragment = document.createDocumentFragment();
+                rows.forEach(row => fragment.appendChild(row));
+                container.appendChild(fragment);
+            }
+        }
+
+    </script>
+</body>
+</html>

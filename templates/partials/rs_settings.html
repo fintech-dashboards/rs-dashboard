@@ -1,0 +1,77 @@
+<!-- RS Calculation Settings -->
+<div class="settings-card">
+    <div class="settings-header">
+        <h3>RS Calculation Weights</h3>
+        <p>Quarterly weights for relative strength calculation. Weights are normalized to sum to 100%.</p>
+    </div>
+
+    <form hx-post="/api/settings/rs"
+          hx-target="#rs-settings-container"
+          hx-swap="innerHTML">
+        <div class="weight-grid">
+            <div class="weight-item">
+                <label for="q1_weight">Q1 (Recent)</label>
+                <div class="weight-input-wrap">
+                    <input type="number"
+                           id="q1_weight"
+                           name="q1_weight"
+                           value="{{ (settings.q1_weight * 100) | round | int }}"
+                           min="0"
+                           max="100"
+                           step="5">
+                    <span class="weight-suffix">%</span>
+                </div>
+                <span class="weight-hint">Last 63 days</span>
+            </div>
+            <div class="weight-item">
+                <label for="q2_weight">Q2</label>
+                <div class="weight-input-wrap">
+                    <input type="number"
+                           id="q2_weight"
+                           name="q2_weight"
+                           value="{{ (settings.q2_weight * 100) | round | int }}"
+                           min="0"
+                           max="100"
+                           step="5">
+                    <span class="weight-suffix">%</span>
+                </div>
+                <span class="weight-hint">64-126 days</span>
+            </div>
+            <div class="weight-item">
+                <label for="q3_weight">Q3</label>
+                <div class="weight-input-wrap">
+                    <input type="number"
+                           id="q3_weight"
+                           name="q3_weight"
+                           value="{{ (settings.q3_weight * 100) | round | int }}"
+                           min="0"
+                           max="100"
+                           step="5">
+                    <span class="weight-suffix">%</span>
+                </div>
+                <span class="weight-hint">127-189 days</span>
+            </div>
+            <div class="weight-item">
+                <label for="q4_weight">Q4 (Oldest)</label>
+                <div class="weight-input-wrap">
+                    <input type="number"
+                           id="q4_weight"
+                           name="q4_weight"
+                           value="{{ (settings.q4_weight * 100) | round | int }}"
+                           min="0"
+                           max="100"
+                           step="5">
+                    <span class="weight-suffix">%</span>
+                </div>
+                <span class="weight-hint">190-252 days</span>
+            </div>
+        </div>
+
+        <div class="settings-footer">
+            {% if saved %}
+            <span class="save-indicator">Saved</span>
+            {% endif %}
+            <button type="submit" class="btn-primary">Save Weights</button>
+        </div>
+    </form>
+</div>

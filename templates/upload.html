@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RS Dashboard - Setup</title>
+    <script src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js" defer></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #0f172a;
+            --bg-card: #1e293b;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --blue: #3b82f6;
+            --border: #334155;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            max-width: 500px;
+            padding: 2rem;
+        }
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 2.5rem;
+            text-align: center;
+        }
+        h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .subtitle { color: var(--text-muted); margin-bottom: 2rem; }
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 3rem 2rem;
+            margin-bottom: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--blue);
+            background: rgba(59, 130, 246, 0.1);
+        }
+        .upload-zone input { display: none; }
+        .upload-icon { font-size: 3rem; margin-bottom: 1rem; }
+        .upload-text { color: var(--text-muted); }
+        .upload-text span { color: var(--blue); font-weight: 500; }
+        .file-name {
+            background: var(--bg);
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .btn {
+            width: 100%;
+            padding: 0.875rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: var(--blue);
+            color: white;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .help { margin-top: 1.5rem; font-size: 0.875rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <div class="container" x-data="uploadApp()">
+        <div class="card">
+            <h1>📈 RS Dashboard</h1>
+            <p class="subtitle">Upload your ticker list to get started</p>
+            
+            <div class="upload-zone" 
+                 :class="{ dragover: isDragging }"
+                 @click="$refs.fileInput.click()"
+                 @dragover.prevent="isDragging = true"
+                 @dragleave.prevent="isDragging = false"
+                 @drop.prevent="handleDrop($event)">
+                <input type="file" accept=".csv" x-ref="fileInput" @change="handleFile($event)">
+                <div class="upload-icon">📄</div>
+                <p class="upload-text">
+                    Drop your CSV here or <span>browse</span>
+                </p>
+            </div>
+            
+            <template x-if="fileName">
+                <div class="file-name">
+                    <span x-text="fileName"></span>
+                    <span @click.stop="clearFile()" style="cursor:pointer">✕</span>
+                </div>
+            </template>
+            
+            <button class="btn" @click="upload()" :disabled="!fileName || uploading">
+                <span x-text="uploading ? 'Uploading...' : '🚀 Import & Start'"></span>
+            </button>
+            
+            <p class="help">
+                CSV should have a column named <strong>Symbol</strong> or <strong>Ticker</strong>
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        function uploadApp() {
+            return {
+                fileName: '',
+                file: null,
+                uploading: false,
+                isDragging: false,
+                
+                handleFile(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        this.file = file;
+                        this.fileName = file.name;
+                    }
+                },
+                
+                handleDrop(e) {
+                    this.isDragging = false;
+                    const file = e.dataTransfer.files[0];
+                    if (file && file.name.endsWith('.csv')) {
+                        this.file = file;
+                        this.fileName = file.name;
+                    }
+                },
+                
+                clearFile() {
+                    this.file = null;
+                    this.fileName = '';
+                },
+                
+                async upload() {
+                    if (!this.file) return;
+                    
+                    this.uploading = true;
+                    const formData = new FormData();
+                    formData.append('file', this.file);
+                    
+                    try {
+                        await fetch('/api/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        window.location.href = '/admin';
+                    } catch (e) {
+                        alert('Upload failed');
+                        this.uploading = false;
+                    }
+                }
+            };
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+{# Shared Navbar Component #}
+<nav style="background: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 1rem 0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; max-width: 1400px; margin: 0 auto; padding: 0 2rem;">
+        <a href="/" class="logo" style="font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 500; text-decoration: none; letter-spacing: 0.05em; text-transform: uppercase;">
+            <span style="color: var(--accent);">RS</span><span style="color: var(--accent);">.</span>DASHBOARD
+        </a>
+        
+        <div style="display: flex; gap: 3rem; align-items: center;">
+            <!-- Navigation Links -->
+            <div style="display: flex; gap: 2rem; align-items: center;">
+                <a href="/dashboard" 
+                   style="color: {% if page == 'dashboard' %}white{% else %}var(--text-muted){% endif %}; text-decoration: none; font-weight: {% if page == 'dashboard' %}700{% else %}500{% endif %}; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.9rem; transition: all 0.2s; padding-bottom: 0.5rem; border-bottom: {% if page == 'dashboard' %}2px solid var(--accent){% else %}2px solid transparent{% endif %};" 
+                   onmouseover="this.style.color='white'" 
+                   onmouseout="this.style.color='{% if page == 'dashboard' %}white{% else %}var(--text-muted){% endif %}'">
+                    Dashboard
+                </a>
+                <a href="/admin" 
+                   style="color: {% if page == 'admin' %}white{% else %}var(--text-muted){% endif %}; text-decoration: none; font-weight: {% if page == 'admin' %}700{% else %}500{% endif %}; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.9rem; transition: all 0.2s; padding-bottom: 0.5rem; border-bottom: {% if page == 'admin' %}2px solid var(--accent){% else %}2px solid transparent{% endif %};" 
+                   onmouseover="this.style.color='white'" 
+                   onmouseout="this.style.color='{% if page == 'admin' %}white{% else %}var(--text-muted){% endif %}'">
+                    Data Manager
+                </a>
+            </div>
+            
+            <!-- Buy Me a Coffee - Icon only, text appears randomly once per session -->
+            <a href="https://buymeacoffee.com/thatfintechguy"
+               target="_blank"
+               rel="noopener noreferrer"
+               id="bmc-button"
+               style="color: var(--accent); text-decoration: none; font-size: 1.25rem; transition: opacity 0.2s;"
+               title="Buy me a coffee">
+                <span id="bmc-text">☕</span>
+            </a>
+        </div>
+    </div>
+</nav>

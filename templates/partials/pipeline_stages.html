@@ -1,0 +1,134 @@
+{# Entity-Based Pipeline Status: Stocks, Sectors, Industries #}
+{# Macro for status indicator with progress #}
+{% macro status_row(label, item, show_progress=true) %}
+<div style="display: flex; justify-content: space-between; margin: 0.25rem 0;">
+    <span>
+        {% if item.status == 'running' %}<span class="spinner" style="width: 12px; height: 12px;"></span>
+        {% elif item.status == 'complete' %}<span style="color: var(--green);">✓</span>
+        {% else %}<span style="color: var(--text-muted);">○</span>{% endif %}
+        {{ label }}
+    </span>
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;">
+        {% if item.status == 'running' and show_progress and item.task_total > 0 %}
+            <span style="color: var(--accent);">{{ item.completed }}/{{ item.task_total }}</span>
+        {% else %}
+            {{ item.days }}d
+        {% endif %}
+    </span>
+</div>
+{% endmacro %}
+
+<div class="stage-grid">
+    <!-- STOCKS Panel -->
+    <div class="stage {% if pipeline.stocks.prices.status == 'running' or pipeline.stocks.rs_score.status == 'running' %}active{% elif pipeline.stocks.prices.status == 'complete' and pipeline.stocks.rs_score.status == 'complete' %}complete{% endif %}">
+        <div class="stage-name">STOCKS</div>
+        <div class="stage-count" style="font-size: 1.5rem; margin: 0.5rem 0;">{{ pipeline.stocks.total }}</div>
+
+        <div class="stage-details" style="font-size: 0.85rem; color: var(--text-muted);">
+            {{ status_row('Prices', pipeline.stocks.prices) }}
+            {{ status_row('RS Score', pipeline.stocks.rs_score, false) }}
+        </div>
+
+        {% if pipeline.stocks.prices.status == 'running' and pipeline.stocks.prices.task_total > 0 %}
+        <div class="stage-progress-bar" style="margin-top: 0.5rem;">
+            <div class="stage-progress-fill" style="width: {{ (pipeline.stocks.prices.completed / pipeline.stocks.prices.task_total * 100)|int }}%;"></div>
+        </div>
+        {% endif %}
+
+        <div class="stage-status {% if pipeline.stocks.prices.status == 'running' or pipeline.stocks.rs_score.status == 'running' %}active{% elif pipeline.stocks.prices.status == 'complete' and pipeline.stocks.rs_score.status == 'complete' %}complete{% else %}pending{% endif %}" style="margin-top: 0.5rem;">
+            {% if pipeline.stocks.prices.status == 'running' or pipeline.stocks.rs_score.status == 'running' %}
+                <div class="spinner"></div><span>RUNNING</span>
+            {% elif pipeline.stocks.prices.status == 'complete' and pipeline.stocks.rs_score.status == 'complete' %}
+                <span>✓ COMPLETE</span>
+            {% else %}
+                <span>PENDING</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- SECTORS Panel -->
+    <div class="stage {% if pipeline.sectors.returns.status == 'running' or pipeline.sectors.rs_score.status == 'running' %}active{% elif pipeline.sectors.returns.status == 'complete' and pipeline.sectors.rs_score.status == 'complete' %}complete{% endif %}">
+        <div class="stage-name">SECTORS</div>
+        <div class="stage-count" style="font-size: 1.5rem; margin: 0.5rem 0;">{{ pipeline.sectors.total }}</div>
+
+        <div class="stage-details" style="font-size: 0.85rem; color: var(--text-muted);">
+            {{ status_row('Returns', pipeline.sectors.returns) }}
+            {{ status_row('RS Score', pipeline.sectors.rs_score, false) }}
+        </div>
+
+        {% if pipeline.sectors.returns.status == 'running' and pipeline.sectors.returns.task_total > 0 %}
+        <div class="stage-progress-bar" style="margin-top: 0.5rem;">
+            <div class="stage-progress-fill" style="width: {{ (pipeline.sectors.returns.completed / pipeline.sectors.returns.task_total * 100)|int }}%;"></div>
+        </div>
+        {% endif %}
+
+        <div class="stage-status {% if pipeline.sectors.returns.status == 'running' or pipeline.sectors.rs_score.status == 'running' %}active{% elif pipeline.sectors.returns.status == 'complete' and pipeline.sectors.rs_score.status == 'complete' %}complete{% else %}pending{% endif %}" style="margin-top: 0.5rem;">
+            {% if pipeline.sectors.returns.status == 'running' or pipeline.sectors.rs_score.status == 'running' %}
+                <div class="spinner"></div><span>RUNNING</span>
+            {% elif pipeline.sectors.returns.status == 'complete' and pipeline.sectors.rs_score.status == 'complete' %}
+                <span>✓ COMPLETE</span>
+            {% else %}
+                <span>PENDING</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- INDUSTRIES Panel -->
+    <div class="stage {% if pipeline.industries.returns.status == 'running' or pipeline.industries.rs_score.status == 'running' %}active{% elif pipeline.industries.returns.status == 'complete' and pipeline.industries.rs_score.status == 'complete' %}complete{% endif %}">
+        <div class="stage-name">INDUSTRIES</div>
+        <div class="stage-count" style="font-size: 1.5rem; margin: 0.5rem 0;">{{ pipeline.industries.total }}</div>
+
+        <div class="stage-details" style="font-size: 0.85rem; color: var(--text-muted);">
+            {{ status_row('Returns', pipeline.industries.returns) }}
+            {{ status_row('RS Score', pipeline.industries.rs_score, false) }}
+        </div>
+
+        {% if pipeline.industries.returns.status == 'running' and pipeline.industries.returns.task_total > 0 %}
+        <div class="stage-progress-bar" style="margin-top: 0.5rem;">
+            <div class="stage-progress-fill" style="width: {{ (pipeline.industries.returns.completed / pipeline.industries.returns.task_total * 100)|int }}%;"></div>
+        </div>
+        {% endif %}
+
+        <div class="stage-status {% if pipeline.industries.returns.status == 'running' or pipeline.industries.rs_score.status == 'running' %}active{% elif pipeline.industries.returns.status == 'complete' and pipeline.industries.rs_score.status == 'complete' %}complete{% else %}pending{% endif %}" style="margin-top: 0.5rem;">
+            {% if pipeline.industries.returns.status == 'running' or pipeline.industries.rs_score.status == 'running' %}
+                <div class="spinner"></div><span>RUNNING</span>
+            {% elif pipeline.industries.returns.status == 'complete' and pipeline.industries.rs_score.status == 'complete' %}
+                <span>✓ COMPLETE</span>
+            {% else %}
+                <span>PENDING</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div style="margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+    {% set any_running = pipeline.stocks.prices.status == 'running' or pipeline.stocks.rs_score.status == 'running' or pipeline.sectors.returns.status == 'running' or pipeline.sectors.rs_score.status == 'running' or pipeline.industries.returns.status == 'running' or pipeline.industries.rs_score.status == 'running' %}
+
+    <button class="stage-btn"
+            hx-post="/api/refresh-all"
+            hx-target="#pipeline-stages"
+            hx-confirm="Start full refresh (prices → returns → RS)?"
+            {% if any_running %}disabled{% endif %}>
+        Refresh All
+    </button>
+
+    <button class="stage-btn"
+            hx-post="/api/recalculate-rs"
+            hx-target="#pipeline-stages"
+            hx-confirm="Recalculate RS for backfill days?"
+            {% if any_running %}disabled{% endif %}>
+        Recalculate RS
+    </button>
+
+    <button class="stage-btn"
+            @click="$dispatch('show-add-modal')"
+            style="margin-left: auto;">
+        + Add Tickers
+    </button>
+
+    <button class="stage-btn"
+            @click="$dispatch('show-advanced-modal')">
+        Advanced
+    </button>
+</div>
