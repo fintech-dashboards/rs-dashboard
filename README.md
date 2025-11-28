@@ -152,7 +152,7 @@ rs-metrics-app/
 
 ## Legal Disclaimer
 
-**EDUCATIONAL TOOL ONLY. NOT INVESTMENT ADVICE. NO WARRANTIES OR GUARANTEES. USE AT YOUR OWN RISK.**
+**EDUCATIONAL TOOL ONLY. NO WARRANTIES OR GUARANTEES. USE AT YOUR OWN RISK.**
 
 Open-source code provided as-is with no guarantee of accuracy, completeness, or fitness for any purpose. Data sourced by user from Yahoo Finance may be incomplete or inaccurate. User is solely responsible for downloading, setting up, and running this tool. Technical competency required. User assumes all risk and consequences. The creator assumes no liability for any losses or damages.
 
@@ -175,8 +175,5 @@ MIT License - see LICENSE file for details
 
 ## Contact
 
-Questions or ideas? [thatfintechguy@outlook.com](mailto:thatfintechguy@outlook.com)
+Questions or ideas? Reach out to  [thatfintechguy@outlook.com](mailto:thatfintechguy@outlook.com)
 
----
-
-*Expensive tools are pricing out retail traders and creating information asymmetry. RS Dashboard levels the playing field.*
