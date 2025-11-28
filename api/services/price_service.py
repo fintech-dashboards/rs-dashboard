@@ -65,25 +65,11 @@ def get_ticker_stats() -> Dict:
     return {"total": total, "with_prices": with_prices}
 
 
-def get_filtered_tickers(status: str, sector: str, industry: str, search: str) -> List[Dict]:
+def get_all_tickers() -> List[Dict]:
+    """Get all tickers - filtering done client-side"""
     conn = get_prices_connection()
     cursor = conn.cursor()
-
-    query = "SELECT symbol, name, sector, industry FROM tickers WHERE 1=1"
-    params = []
-
-    if sector != "all":
-        query += " AND sector = ?"
-        params.append(sector)
-    if industry != "all":
-        query += " AND industry = ?"
-        params.append(industry)
-    if search:
-        query += " AND symbol LIKE ?"
-        params.append(f"%{search.upper()}%")
-
-    query += " ORDER BY symbol"
-    cursor.execute(query, params)
+    cursor.execute("SELECT symbol, name, sector, industry FROM tickers ORDER BY symbol")
     rows = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return rows

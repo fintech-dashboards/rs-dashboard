@@ -178,13 +178,10 @@
 
         .stage {
             background: var(--bg-secondary);
-            padding: 2rem;
-            text-align: center;
+            padding: 0.5rem 0.75rem;
+            text-align: left;
             position: relative;
             transition: background 0.3s;
-            display: flex;
-            flex-direction: column;
-            min-height: 280px;
         }
 
         .stage::before {
@@ -906,14 +903,14 @@
         </section>
 
         <!-- Divider -->
-        <div style="display: flex; justify-content: center; margin: 1.5rem 0; padding: 0 1rem;">
+        <div style="display: flex; justify-content: center; margin: 0.75rem 0; padding: 0 1rem;">
             <div style="width: 80%; max-width: 1200px; height: 1px; background: var(--accent);"></div>
         </div>
 
         <!-- Tickers Table -->
-        <section class="table-section">
+        <section class="table-section" style="padding-top: 0;">
             <div class="container">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                     <div class="section-label" style="margin-bottom: 0;">TICKERS</div>
                     {% if stats %}
                     <div style="display: flex; gap: 2rem; font-size: 0.875rem; color: var(--text-muted);">
@@ -923,54 +920,10 @@
                     {% endif %}
                 </div>
 
-                <!-- Filters -->
-                <div class="filters" x-show="true">
-                    <select x-model="filter" name="filter"
-                            hx-get="/api/ticker-table-html"
-                            hx-trigger="change"
-                            hx-target="#ticker-table"
-                            hx-include="[name='filter'],[name='sector'],[name='industry'],[name='search']">
-                        <option value="all">All Statuses</option>
-                        <option value="pending">Pending</option>
-                        <option value="complete">Complete</option>
-                        <option value="failed">Failed</option>
-                    </select>
-                    <select x-model="sectorFilter" name="sector"
-                            hx-get="/api/ticker-table-html"
-                            hx-trigger="change"
-                            hx-target="#ticker-table"
-                            hx-include="[name='filter'],[name='sector'],[name='industry'],[name='search']">
-                        <option value="all">All Sectors</option>
-                        {% for sector in tickers | map(attribute='sector') | unique | sort %}
-                        {% if sector %}<option value="{{ sector }}">{{ sector }}</option>{% endif %}
-                        {% endfor %}
-                    </select>
-                    <select x-model="industryFilter" name="industry"
-                            hx-get="/api/ticker-table-html"
-                            hx-trigger="change"
-                            hx-target="#ticker-table"
-                            hx-include="[name='filter'],[name='sector'],[name='industry'],[name='search']">
-                        <option value="all">All Industries</option>
-                        {% for industry in tickers | map(attribute='industry') | unique | sort %}
-                        {% if industry %}<option value="{{ industry }}">{{ industry }}</option>{% endif %}
-                        {% endfor %}
-                    </select>
-                    <input type="text"
-                           placeholder="Search symbol..."
-                           x-model="search"
-                           name="search"
-                           hx-get="/api/ticker-table-html"
-                           hx-trigger="keyup changed delay:500ms"
-                           hx-target="#ticker-table"
-                           hx-include="[name='filter'],[name='sector'],[name='industry'],[name='search']">
-                    <span style="color: var(--text-muted); font-size: 0.875rem; margin-left: auto;">{{ tickers | length }} tickers</span>
-                </div>
-
-                <!-- HTMX: Only refresh when pipeline triggers it (no continuous polling) -->
+                <!-- Ticker Table with Client-Side Filtering -->
                 <div id="ticker-table"
                      hx-get="/api/ticker-table-html"
-                     hx-trigger="load, refreshTickerTable from:body"
-                     hx-include="[name='filter'],[name='sector'],[name='industry'],[name='search']">
+                     hx-trigger="load, refreshTickerTable from:body">
                     {% include 'partials/ticker_table.html' %}
                 </div>
             </div>
@@ -987,13 +940,7 @@
                 Data sourced by user from Yahoo Finance may be incomplete or inaccurate. User assumes all risk and consequences.
             </p>
             <div style="text-align: center; color: var(--text-muted); font-size: 0.875rem;">
-                RS Dashboard •
-                <a href="https://buymeacoffee.com/thatfintechguy"
-                   target="_blank"
-                   rel="noopener noreferrer"
-                   style="color: var(--accent); text-decoration: none;">
-                    ☕
-                </a>
+                RS Dashboard • Like this project? <a href="https://buymeacoffee.com/thatfintechguy" target="_blank" rel="noopener noreferrer" style="color: var(--text-muted); text-decoration: none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-muted)'">☕ Please support</a>
             </div>
         </footer>
 

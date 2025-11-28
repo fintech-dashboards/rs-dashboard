@@ -1,11 +1,12 @@
 """HTMX fragment endpoints"""
 from fastapi import APIRouter, Request, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
+from datetime import date
 
 from ..services import price_service, task_service
-from db import get_connection
+from db import get_connection, get_setting, update_setting
 
 router = APIRouter(tags=["htmx"])
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent.parent / "templates"))
@@ -39,16 +40,10 @@ async def get_pipeline_status(request: Request):
 
 
 @router.get("/ticker-table-html", response_class=HTMLResponse)
-async def get_ticker_table(
-    request: Request,
-    filter: str = Query(default="all"),
-    sector: str = Query(default="all"),
-    industry: str = Query(default="all"),
-    search: str = Query(default="")
-):
-    """Simple endpoint - returns all filtered tickers. Client handles sort/pagination."""
-    # Get filtered tickers
-    tickers = price_service.get_filtered_tickers(filter, sector, industry, search)
+async def get_ticker_table(request: Request):
+    """Returns all tickers. Client handles filtering/sorting/pagination."""
+    # Get all tickers - filtering done client-side
+    tickers = price_service.get_all_tickers()
 
     # BATCH QUERY 1: Get price counts for all tickers at once
     conn = get_connection()
@@ -82,10 +77,35 @@ async def get_ticker_table(
             'price_count': price_count,
             'rs_status': 'complete' if rs_info else 'pending',
             'rs_score': rs_info['score'] if rs_info else None,
-            'rs_percentile': int(rs_info['percentile']) if rs_info else 0,
+            'rs_percentile': int(rs_info['percentile']) if rs_info and rs_info['percentile'] else 0,
         })
 
     return templates.TemplateResponse("partials/ticker_table.html", {
         "request": request,
         "tickers": enhanced_tickers
     })
+
+
+@router.get("/bmc-check")
+async def bmc_check():
+    """Check if 'Buy me a coffee' text should be shown. Resets to 10 daily, decrements on each check."""
+    today = date.today().isoformat()
+
+    # Get stored date and counter
+    stored_date = get_setting('bmc_date')
+    counter_str = get_setting('bmc_counter')
+
+    # Reset counter if new day or not set
+    if stored_date != today or counter_str is None:
+        update_setting('bmc_date', today)
+        update_setting('bmc_counter', '10')
+        counter = 10
+    else:
+        counter = int(counter_str)
+
+    # If counter > 0, show text and decrement
+    if counter > 0:
+        update_setting('bmc_counter', str(counter - 1))
+        return JSONResponse({"show": True, "remaining": counter - 1})
+
+    return JSONResponse({"show": False, "remaining": 0})

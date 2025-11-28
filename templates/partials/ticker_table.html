@@ -1,4 +1,4 @@
-{# Ticker Table Component - Client-side sorting & pagination with Alpine.js #}
+{# Ticker Table Component - Client-side filtering, sorting & pagination with Alpine.js #}
 {% if tickers | length == 0 %}
 <!-- Empty State -->
 <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
@@ -12,19 +12,61 @@
 {% else %}
 
 <div x-data="tickerTable()" x-init="init()">
-    <!-- Pagination Info -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <span style="color: var(--text-muted); font-size: 0.875rem;">
-            Showing <span x-text="startIdx + 1"></span> to <span x-text="Math.min(endIdx, allTickers.length)"></span> of <span x-text="allTickers.length"></span> tickers
+    <!-- Filters -->
+    <div class="filters" style="display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap;">
+        <select x-model="statusFilter" @change="page = 1">
+            <option value="all">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="complete">Complete</option>
+            <option value="failed">Failed</option>
+        </select>
+        <select x-model="sectorFilter" @change="page = 1">
+            <option value="all">All Sectors</option>
+            <template x-for="sector in uniqueSectors" :key="sector">
+                <option :value="sector" x-text="sector"></option>
+            </template>
+        </select>
+        <select x-model="industryFilter" @change="page = 1">
+            <option value="all">All Industries</option>
+            <template x-for="industry in uniqueIndustries" :key="industry">
+                <option :value="industry" x-text="industry"></option>
+            </template>
+        </select>
+        <input type="text"
+               placeholder="Search symbol, name, sector, industry..."
+               x-model="searchFilter"
+               @input="page = 1"
+               style="flex: 1; min-width: 200px;">
+        <span style="color: var(--text-muted); font-size: 0.875rem; margin-left: auto; align-self: center;">
+            <span x-text="filteredTickers.length"></span> tickers
         </span>
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <label style="color: var(--text-muted); font-size: 0.875rem;">Per page:</label>
-            <select x-model="perPage" @change="page = 1" style="padding: 0.25rem 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary);">
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-                <option value="all">All</option>
-            </select>
+    </div>
+
+    <!-- Pagination Info & Controls (top) -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.35rem;">
+                <label style="color: var(--text-muted); font-size: 0.8rem;">Per page:</label>
+                <select x-model="perPage" @change="page = 1" style="padding: 0.2rem 0.4rem; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); font-size: 0.8rem; appearance: none; -webkit-appearance: none; box-shadow: none;">
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="all">All</option>
+                </select>
+            </div>
+            <span style="color: var(--text-muted); font-size: 0.8rem;">
+                Showing <span x-text="Math.min(startIdx + 1, filteredTickers.length)"></span>-<span x-text="Math.min(endIdx, filteredTickers.length)"></span> of <span x-text="filteredTickers.length"></span>
+            </span>
+        </div>
+        <!-- Pagination Controls -->
+        <div x-show="totalPages > 1" style="display: flex; align-items: center; gap: 0.35rem;">
+            <button @click="page = 1" :disabled="page === 1" style="padding: 0.2rem 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); cursor: pointer; font-size: 0.8rem;">««</button>
+            <button @click="page = Math.max(1, page - 1)" :disabled="page === 1" style="padding: 0.2rem 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); cursor: pointer; font-size: 0.8rem;">‹</button>
+            <span style="color: var(--text-muted); font-size: 0.8rem; padding: 0 0.5rem;">
+                Page <span x-text="page"></span> / <span x-text="totalPages"></span>
+            </span>
+            <button @click="page = Math.min(totalPages, page + 1)" :disabled="page === totalPages" style="padding: 0.2rem 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); cursor: pointer; font-size: 0.8rem;">›</button>
+            <button @click="page = totalPages" :disabled="page === totalPages" style="padding: 0.2rem 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); cursor: pointer; font-size: 0.8rem;">»»</button>
         </div>
     </div>
 
@@ -90,7 +132,14 @@
                             <span>—</span>
                         </template>
                     </td>
-                    <td x-text="ticker.rs_percentile ? ticker.rs_percentile + 'th' : '—'"></td>
+                    <td>
+                        <template x-if="ticker.rs_percentile">
+                            <span x-text="ticker.rs_percentile + 'th'"></span>
+                        </template>
+                        <template x-if="!ticker.rs_percentile">
+                            <span>—</span>
+                        </template>
+                    </td>
                     <td>
                         <template x-if="ticker.price_status === 'complete'">
                             <button class="icon-btn"
@@ -111,16 +160,6 @@
         </tbody>
     </table>
 
-    <!-- Pagination Controls -->
-    <div x-show="totalPages > 1" style="display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: 4px;">
-        <button @click="page = 1" :disabled="page === 1" class="pagination-btn" style="padding: 0.5rem 0.75rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); cursor: pointer;">««</button>
-        <button @click="page = Math.max(1, page - 1)" :disabled="page === 1" class="pagination-btn" style="padding: 0.5rem 0.75rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); cursor: pointer;">‹</button>
-        <span style="color: var(--text-secondary); font-size: 0.875rem; padding: 0 1rem;">
-            Page <span x-text="page"></span> of <span x-text="totalPages"></span>
-        </span>
-        <button @click="page = Math.min(totalPages, page + 1)" :disabled="page === totalPages" class="pagination-btn" style="padding: 0.5rem 0.75rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); cursor: pointer;">›</button>
-        <button @click="page = totalPages" :disabled="page === totalPages" class="pagination-btn" style="padding: 0.5rem 0.75rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); cursor: pointer;">»»</button>
-    </div>
 </div>
 
 <script>
@@ -131,18 +170,64 @@ function tickerTable() {
         sortDir: 'asc',
         page: 1,
         perPage: '50',
+        // Filters
+        statusFilter: 'all',
+        sectorFilter: 'all',
+        industryFilter: 'all',
+        searchFilter: '',
 
         init() {
-            // Default sort by symbol
             this.sortData();
         },
 
+        // Unique values for dropdowns
+        get uniqueSectors() {
+            const sectors = [...new Set(this.allTickers.map(t => t.sector).filter(s => s))];
+            return sectors.sort();
+        },
+
+        get uniqueIndustries() {
+            const industries = [...new Set(this.allTickers.map(t => t.industry).filter(i => i))];
+            return industries.sort();
+        },
+
+        // Filtered tickers based on all filters
+        get filteredTickers() {
+            const search = this.searchFilter.toLowerCase();
+            return this.allTickers.filter(t => {
+                // Status filter
+                if (this.statusFilter !== 'all') {
+                    if (this.statusFilter === 'pending' && t.price_status !== 'pending') return false;
+                    if (this.statusFilter === 'complete' && t.price_status !== 'complete') return false;
+                    if (this.statusFilter === 'failed' && t.price_status !== 'failed') return false;
+                }
+                // Sector filter
+                if (this.sectorFilter !== 'all' && t.sector !== this.sectorFilter) return false;
+                // Industry filter
+                if (this.industryFilter !== 'all' && t.industry !== this.industryFilter) return false;
+                // Search filter - match across symbol, name, sector, industry
+                if (search) {
+                    const symbol = (t.symbol || '').toLowerCase();
+                    const name = (t.name || '').toLowerCase();
+                    const sector = (t.sector || '').toLowerCase();
+                    const industry = (t.industry || '').toLowerCase();
+                    if (!symbol.includes(search) &&
+                        !name.includes(search) &&
+                        !sector.includes(search) &&
+                        !industry.includes(search)) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+        },
+
         get perPageNum() {
-            return this.perPage === 'all' ? this.allTickers.length : parseInt(this.perPage);
+            return this.perPage === 'all' ? this.filteredTickers.length : parseInt(this.perPage);
         },
 
         get totalPages() {
-            return Math.ceil(this.allTickers.length / this.perPageNum);
+            return Math.ceil(this.filteredTickers.length / this.perPageNum) || 1;
         },
 
         get startIdx() {
@@ -154,7 +239,7 @@ function tickerTable() {
         },
 
         get paginatedTickers() {
-            return this.allTickers.slice(this.startIdx, this.endIdx);
+            return this.filteredTickers.slice(this.startIdx, this.endIdx);
         },
 
         sort(column) {

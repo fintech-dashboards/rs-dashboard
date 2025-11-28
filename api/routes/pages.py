@@ -124,7 +124,7 @@ async def admin_page(request: Request):
             'price_count': price_count,
             'rs_status': 'complete' if rs_info else 'pending',
             'rs_score': rs_info['score'] if rs_info else None,
-            'rs_percentile': f"{int(rs_info['percentile'])}th" if rs_info else None,
+            'rs_percentile': int(rs_info['percentile']) if rs_info and rs_info['percentile'] else 0,
             'price_chart': [],
             'rs_chart': [],
             'history_days': price_count,  # Number of price records available

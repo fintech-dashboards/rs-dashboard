@@ -22,15 +22,31 @@
                 </a>
             </div>
             
-            <!-- Buy Me a Coffee - Icon only, text appears randomly once per session -->
+            <!-- Support link - Icon always, text shown 10x per day -->
             <a href="https://buymeacoffee.com/thatfintechguy"
                target="_blank"
                rel="noopener noreferrer"
                id="bmc-button"
-               style="color: var(--accent); text-decoration: none; font-size: 1.25rem; transition: opacity 0.2s;"
-               title="Buy me a coffee">
-                <span id="bmc-text">☕</span>
+               style="color: var(--text-muted); text-decoration: none; font-size: 0.8rem; transition: color 0.2s; display: flex; align-items: center; gap: 0.4rem;"
+               title="Support this project"
+               onmouseover="this.style.color='var(--accent)'"
+               onmouseout="this.style.color='var(--text-muted)'">
+                <span id="bmc-text" style="display: none;">Like this project?</span>
+                <span style="font-size: 1rem;">☕</span>
             </a>
         </div>
     </div>
 </nav>
+
+<script>
+(function() {
+    fetch('/api/bmc-check')
+        .then(r => r.json())
+        .then(data => {
+            if (data.show) {
+                document.getElementById('bmc-text').style.display = 'inline';
+            }
+        })
+        .catch(() => {});
+})();
+</script>
