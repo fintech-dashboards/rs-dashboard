@@ -166,11 +166,19 @@ def _calculate_quarterly_returns_from_prices(price_window: np.ndarray) -> np.nda
     Returns:
         quarterly_returns: 2D array of shape (4, n_stocks)
     """
+    # Validate input
+    if price_window.size == 0:
+        return np.zeros((4, 1))
+    
     n_days = price_window.shape[0]
     n_stocks = price_window.shape[1] if price_window.ndim > 1 else 1
 
     if price_window.ndim == 1:
         price_window = price_window.reshape(-1, 1)
+
+    # Return zeros if insufficient data
+    if n_days < 20:
+        return np.zeros((4, n_stocks))
 
     quarterly_returns = np.zeros((4, n_stocks))
 
@@ -213,11 +221,19 @@ def _calculate_quarterly_returns_from_daily_returns(returns_window: np.ndarray) 
     Returns:
         quarterly_returns: 2D array of shape (4, n_entities)
     """
+    # Validate input
+    if returns_window.size == 0:
+        return np.zeros((4, 1))
+    
     n_days = returns_window.shape[0]
     n_entities = returns_window.shape[1] if returns_window.ndim > 1 else 1
 
     if returns_window.ndim == 1:
         returns_window = returns_window.reshape(-1, 1)
+
+    # Return zeros if insufficient data
+    if n_days < 20:
+        return np.zeros((4, n_entities))
 
     quarterly_returns = np.zeros((4, n_entities))
 
@@ -242,6 +258,23 @@ def _calculate_quarterly_returns_from_daily_returns(returns_window: np.ndarray) 
         quarterly_returns[q, :] = cum_return
 
     return quarterly_returns
+
+
+def _get_benchmark_quarterly_returns(bench_window_values: np.ndarray, weights: np.ndarray) -> float:
+    """Get benchmark quarterly returns as scalar.
+    
+    Args:
+        bench_window_values: 1D array of benchmark prices/returns
+        weights: 1D array of quarterly weights
+    
+    Returns:
+        Scalar benchmark weighted return
+    """
+    q_returns = _calculate_quarterly_returns_from_daily_returns(bench_window_values)
+    # q_returns is (4, 1) - extract column to get (4,)
+    if q_returns.ndim == 2:
+        q_returns = q_returns[:, 0]
+    return float(np.dot(weights, q_returns))
 
 
 def _calculate_percentiles(scores: np.ndarray) -> np.ndarray:
@@ -303,7 +336,9 @@ def _do_calculate_stock_rs(task_id: str, dates: List[str]) -> dict:
             return {'task_id': task_id, 'error': 'No benchmark data'}
 
         symbols = price_matrix.columns.tolist()
-        all_results = []
+        batch_results = []
+        total_saved = 0
+        BATCH_SIZE = 10000  # Save every 10k records to prevent memory bloat
 
         # Adjust min_points based on available data
         available_days = len(price_matrix)
@@ -335,12 +370,20 @@ def _do_calculate_stock_rs(task_id: str, dates: List[str]) -> dict:
             # Calculate quarterly returns for all stocks (vectorized)
             stock_q_returns = _calculate_quarterly_returns_from_prices(window.values)
 
-            # Calculate benchmark quarterly returns
-            bench_q_returns = _calculate_quarterly_returns_from_prices(bench_window.values)
+            # Calculate benchmark quarterly returns as scalar
+            bench_weighted = _get_benchmark_quarterly_returns(bench_window.values, weights)
 
             # Apply weights: np.dot(4,) @ (4, n_stocks) = (n_stocks,)
             stock_weighted = np.dot(weights, stock_q_returns)
-            bench_weighted = np.dot(weights, bench_q_returns.flatten())
+            
+            # Validate shapes before proceeding
+            if stock_weighted.ndim != 1:
+                _log(f"STOCK RS WARNING: Unexpected stock_weighted shape {stock_weighted.shape}, skipping date {date_str}")
+                continue
+            
+            if len(stock_weighted) != len(symbols):
+                _log(f"STOCK RS ERROR: stock_weighted length {len(stock_weighted)} != symbols {len(symbols)}")
+                continue
 
             # Calculate RS scores
             with np.errstate(divide='ignore', invalid='ignore'):
@@ -359,13 +402,18 @@ def _do_calculate_stock_rs(task_id: str, dates: List[str]) -> dict:
             valid_scores = rs_scores[valid_mask]
             valid_symbols = [symbols[j] for j in range(len(symbols)) if valid_mask[j]]
             valid_weighted = stock_weighted[valid_mask]
+            
+            # Validate indexing
+            if len(valid_scores) != len(valid_symbols) or len(valid_scores) != len(valid_weighted):
+                _log(f"STOCK RS ERROR: Length mismatch - scores:{len(valid_scores)} symbols:{len(valid_symbols)} weighted:{len(valid_weighted)}")
+                continue
 
             # Calculate percentiles
             percentiles = _calculate_percentiles(valid_scores)
 
             # Create result records
             for sym, score, pctl, wret in zip(valid_symbols, valid_scores, percentiles, valid_weighted):
-                all_results.append({
+                batch_results.append({
                     'entity_type': 'stock',
                     'entity_name': sym,
                     'date': date_str,
@@ -374,12 +422,19 @@ def _do_calculate_stock_rs(task_id: str, dates: List[str]) -> dict:
                     'weighted_return': round(float(wret), 6)
                 })
 
-        # Save all results
-        if all_results:
-            save_rs_scores(all_results)
+            # Batch save to prevent memory bloat
+            if len(batch_results) >= BATCH_SIZE:
+                save_rs_scores(batch_results)
+                total_saved += len(batch_results)
+                batch_results = []  # Clear memory
 
-        update_task_status(task_id, 'completed', progress=f'Calculated {len(all_results)} RS scores')
-        return {'task_id': task_id, 'count': len(all_results), 'dates': len(dates_sorted)}
+        # Save remaining results
+        if batch_results:
+            save_rs_scores(batch_results)
+            total_saved += len(batch_results)
+
+        update_task_status(task_id, 'completed', progress=f'Calculated {total_saved} RS scores')
+        return {'task_id': task_id, 'count': total_saved, 'dates': len(dates_sorted)}
 
     except Exception as e:
         update_task_status(task_id, 'failed', error=str(e))
@@ -414,7 +469,9 @@ def _do_calculate_sector_rs(task_id: str, dates: List[str]) -> dict:
             return {'task_id': task_id, 'error': 'No benchmark data'}
 
         sectors = sector_returns.columns.tolist()
-        all_results = []
+        batch_results = []
+        total_saved = 0
+        BATCH_SIZE = 10000
 
         for i, date_str in enumerate(dates_sorted):
             update_task_status(task_id, 'running', progress=f'Processing {i+1}/{len(dates_sorted)}: {date_str}')
@@ -431,11 +488,16 @@ def _do_calculate_sector_rs(task_id: str, dates: List[str]) -> dict:
 
             # Calculate quarterly returns from daily returns
             sector_q_returns = _calculate_quarterly_returns_from_daily_returns(sector_window.values)
-            bench_q_returns = _calculate_quarterly_returns_from_daily_returns(bench_window.values)
+            bench_weighted = _get_benchmark_quarterly_returns(bench_window.values, weights)
 
             # Apply weights
             sector_weighted = np.dot(weights, sector_q_returns)
-            bench_weighted = np.dot(weights, bench_q_returns.flatten())
+            
+            # Validate shapes
+            if sector_weighted.ndim != 1:
+                continue
+            if len(sector_weighted) != len(sectors):
+                continue
 
             # Calculate RS scores
             with np.errstate(divide='ignore', invalid='ignore'):
@@ -454,11 +516,15 @@ def _do_calculate_sector_rs(task_id: str, dates: List[str]) -> dict:
             valid_scores = rs_scores[valid_mask]
             valid_sectors = [sectors[i] for i in range(len(sectors)) if valid_mask[i]]
             valid_weighted = sector_weighted[valid_mask]
+            
+            # Validate indexing
+            if len(valid_scores) != len(valid_sectors) or len(valid_scores) != len(valid_weighted):
+                continue
 
             percentiles = _calculate_percentiles(valid_scores)
 
             for sec, score, pctl, wret in zip(valid_sectors, valid_scores, percentiles, valid_weighted):
-                all_results.append({
+                batch_results.append({
                     'entity_type': 'sector',
                     'entity_name': sec,
                     'date': date_str,
@@ -467,11 +533,18 @@ def _do_calculate_sector_rs(task_id: str, dates: List[str]) -> dict:
                     'weighted_return': round(float(wret), 6)
                 })
 
-        if all_results:
-            save_rs_scores(all_results)
+            # Batch save to prevent memory bloat
+            if len(batch_results) >= BATCH_SIZE:
+                save_rs_scores(batch_results)
+                total_saved += len(batch_results)
+                batch_results = []
 
-        update_task_status(task_id, 'completed', progress=f'Calculated {len(all_results)} sector RS scores')
-        return {'task_id': task_id, 'count': len(all_results), 'dates': len(dates_sorted)}
+        if batch_results:
+            save_rs_scores(batch_results)
+            total_saved += len(batch_results)
+
+        update_task_status(task_id, 'completed', progress=f'Calculated {total_saved} sector RS scores')
+        return {'task_id': task_id, 'count': total_saved, 'dates': len(dates_sorted)}
 
     except Exception as e:
         update_task_status(task_id, 'failed', error=str(e))
@@ -506,7 +579,9 @@ def _do_calculate_industry_rs(task_id: str, dates: List[str]) -> dict:
             return {'task_id': task_id, 'error': 'No benchmark data'}
 
         industries = industry_returns.columns.tolist()
-        all_results = []
+        batch_results = []
+        total_saved = 0
+        BATCH_SIZE = 10000
 
         for i, date_str in enumerate(dates_sorted):
             update_task_status(task_id, 'running', progress=f'Processing {i+1}/{len(dates_sorted)}: {date_str}')
@@ -522,11 +597,16 @@ def _do_calculate_industry_rs(task_id: str, dates: List[str]) -> dict:
 
             # Calculate quarterly returns
             ind_q_returns = _calculate_quarterly_returns_from_daily_returns(ind_window.values)
-            bench_q_returns = _calculate_quarterly_returns_from_daily_returns(bench_window.values)
+            bench_weighted = _get_benchmark_quarterly_returns(bench_window.values, weights)
 
             # Apply weights
             ind_weighted = np.dot(weights, ind_q_returns)
-            bench_weighted = np.dot(weights, bench_q_returns.flatten())
+            
+            # Validate shapes
+            if ind_weighted.ndim != 1:
+                continue
+            if len(ind_weighted) != len(industries):
+                continue
 
             # Calculate RS
             with np.errstate(divide='ignore', invalid='ignore'):
@@ -544,11 +624,15 @@ def _do_calculate_industry_rs(task_id: str, dates: List[str]) -> dict:
             valid_scores = rs_scores[valid_mask]
             valid_industries = [industries[i] for i in range(len(industries)) if valid_mask[i]]
             valid_weighted = ind_weighted[valid_mask]
+            
+            # Validate indexing
+            if len(valid_scores) != len(valid_industries) or len(valid_scores) != len(valid_weighted):
+                continue
 
             percentiles = _calculate_percentiles(valid_scores)
 
             for ind, score, pctl, wret in zip(valid_industries, valid_scores, percentiles, valid_weighted):
-                all_results.append({
+                batch_results.append({
                     'entity_type': 'industry',
                     'entity_name': ind,
                     'date': date_str,
@@ -557,11 +641,18 @@ def _do_calculate_industry_rs(task_id: str, dates: List[str]) -> dict:
                     'weighted_return': round(float(wret), 6)
                 })
 
-        if all_results:
-            save_rs_scores(all_results)
+            # Batch save to prevent memory bloat
+            if len(batch_results) >= BATCH_SIZE:
+                save_rs_scores(batch_results)
+                total_saved += len(batch_results)
+                batch_results = []
 
-        update_task_status(task_id, 'completed', progress=f'Calculated {len(all_results)} industry RS scores')
-        return {'task_id': task_id, 'count': len(all_results), 'dates': len(dates_sorted)}
+        if batch_results:
+            save_rs_scores(batch_results)
+            total_saved += len(batch_results)
+
+        update_task_status(task_id, 'completed', progress=f'Calculated {total_saved} industry RS scores')
+        return {'task_id': task_id, 'count': total_saved, 'dates': len(dates_sorted)}
 
     except Exception as e:
         update_task_status(task_id, 'failed', error=str(e))

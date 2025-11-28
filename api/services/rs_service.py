@@ -248,3 +248,88 @@ def get_all_industries_strength(sector: str, days: int) -> Dict[str, Dict]:
 
     conn.close()
     return result
+
+
+def get_sector_industry_hierarchy() -> Dict[str, List]:
+    """Get all sectors with their industries and percentiles (excluding Index)"""
+    conn = get_rs_connection()
+    cursor = conn.cursor()
+
+    # Get latest industry percentiles
+    cursor.execute("SELECT MAX(date) FROM rs_scores WHERE entity_type = 'industry'")
+    latest_date = cursor.fetchone()[0]
+
+    # Get industries with percentiles
+    industry_percentiles = {}
+    if latest_date:
+        cursor.execute("""
+            SELECT entity_name, percentile FROM rs_scores
+            WHERE entity_type = 'industry' AND date = ?
+        """, (latest_date,))
+        for row in cursor.fetchall():
+            industry_percentiles[row['entity_name']] = row['percentile'] or 0
+
+    cursor.execute("""
+        SELECT DISTINCT sector, industry FROM tickers
+        WHERE sector != 'Index' AND sector IS NOT NULL AND industry IS NOT NULL
+        ORDER BY sector, industry
+    """)
+
+    hierarchy = {}
+    for row in cursor.fetchall():
+        sector = row['sector']
+        industry = row['industry']
+        if sector not in hierarchy:
+            hierarchy[sector] = []
+        # Include industry with its percentile
+        pct = industry_percentiles.get(industry, 0)
+        if not any(i['name'] == industry for i in hierarchy[sector]):
+            hierarchy[sector].append({'name': industry, 'percentile': pct})
+
+    conn.close()
+    return hierarchy
+
+
+def get_industries_comparison(industry_names: List[str], days: int) -> Dict[str, Dict]:
+    """Get RS score history for multiple industries across all sectors"""
+    conn = get_rs_connection()
+    cursor = conn.cursor()
+
+    if not industry_names:
+        conn.close()
+        return {}
+
+    # Get dates
+    cursor.execute("""
+        SELECT DISTINCT date FROM rs_scores
+        WHERE entity_type = 'industry'
+        ORDER BY date DESC LIMIT ?
+    """, (days,))
+    dates = [row['date'] for row in cursor.fetchall()]
+    dates.reverse()
+
+    if not dates:
+        conn.close()
+        return {}
+
+    # Get industry data for specified industries
+    date_placeholders = ','.join(['?'] * len(dates))
+    industry_placeholders = ','.join(['?'] * len(industry_names))
+    cursor.execute(f"""
+        SELECT entity_name, date, rs_score FROM rs_scores
+        WHERE entity_type = 'industry'
+          AND date IN ({date_placeholders})
+          AND entity_name IN ({industry_placeholders})
+        ORDER BY entity_name, date
+    """, dates + industry_names)
+
+    result = {}
+    for row in cursor.fetchall():
+        name = row['entity_name']
+        if name not in result:
+            result[name] = {"dates": [], "rs_scores": []}
+        result[name]["dates"].append(row['date'])
+        result[name]["rs_scores"].append(row['rs_score'] or 0)
+
+    conn.close()
+    return result

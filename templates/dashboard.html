@@ -12,6 +12,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.2.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1/dist/chartjs-chart-financial.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -498,6 +500,26 @@
         canvas {
             max-height: 500px !important;
         }
+
+        /* Slider styling */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid var(--bg-primary);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid var(--bg-primary);
+        }
     </style>
 </head>
 <body>
@@ -507,22 +529,24 @@
     <main>
         {% if view == "sectors" %}
             <!-- Sectors View -->
-            <div class="section-header">
-                <h1 class="section-title">Sectors</h1>
-                <p class="section-subtitle">% of stocks with RS in top 10% (percentile ≥ 90)</p>
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h1 class="section-title">Sectors</h1>
+                    <p class="section-subtitle">% of stocks with RS in top 10% (percentile ≥ 90)</p>
+                </div>
+                <div style="display: flex; gap: 0.75rem; align-items: center; margin-top: 0.5rem;">
+                    <span style="font-size: 0.6875rem; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted);">Compare</span>
+                    <button onclick="showCompareChart()" style="padding: 0.4rem 0.75rem; background: var(--accent); border: none; color: var(--bg-primary); cursor: pointer; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; border-radius: 4px; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Sectors</button>
+                    <button onclick="showIndustryCompareModal()" style="padding: 0.4rem 0.75rem; background: var(--accent); border: none; color: var(--bg-primary); cursor: pointer; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; border-radius: 4px; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Industries</button>
+                </div>
             </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                <div class="table-header sectors-header" style="flex: 1; margin: 0; grid-template-columns: 1fr 80px 100px 100px 140px;">
-                    <div onclick="sortDashboardTable(0, 'sectors-row')" style="cursor: pointer;">Sector <span class="sort-indicator">⇅</span></div>
-                    <div style="text-align: center;">Chart</div>
-                    <div onclick="sortDashboardTable(2, 'sectors-row')" style="text-align: center; cursor: pointer;">RS Score <span class="sort-indicator">⇅</span></div>
-                    <div onclick="sortDashboardTable(3, 'sectors-row')" style="text-align: center; cursor: pointer;">Percentile <span class="sort-indicator">⇅</span></div>
-                    <div style="text-align: center;">Trend (12W)</div>
-                </div>
-                <button onclick="showCompareChart()" style="margin-left: 1.5rem; padding: 0.625rem 1.25rem; background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 500; transition: all 0.2s;" onmouseover="this.style.background='var(--accent)'; this.style.color='white'" onmouseout="this.style.background='var(--accent-dim)'; this.style.color='var(--accent)'">
-                    Compare All
-                </button>
+            <div class="table-header sectors-header" style="grid-template-columns: 1fr 80px 100px 100px 140px;">
+                <div onclick="sortDashboardTable(0, 'sectors-row')" style="cursor: pointer;">Sector <span class="sort-indicator">⇅</span></div>
+                <div style="text-align: center;">Chart</div>
+                <div onclick="sortDashboardTable(2, 'sectors-row')" style="text-align: center; cursor: pointer;">RS Score <span class="sort-indicator">⇅</span></div>
+                <div onclick="sortDashboardTable(3, 'sectors-row')" style="text-align: center; cursor: pointer;">Percentile <span class="sort-indicator">⇅</span></div>
+                <div style="text-align: center;">Trend (12W)</div>
             </div>
 
             {% for sector in sectors %}
@@ -700,12 +724,65 @@
         <div class="modal-content" style="max-width: 1200px; width: 90vw;">
             <div class="modal-header">
                 <h2 id="stockChartTitle">Stock Chart</h2>
-                <button onclick="closeStockChart()" class="close-btn">✕</button>
+                <div style="display: flex; align-items: center; gap: 0.25rem;">
+                    <button onclick="zoomStockChart(1)" title="Zoom In" style="width: 32px; height: 32px; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 1.25rem; line-height: 1;">+</button>
+                    <button onclick="zoomStockChart(-1)" title="Zoom Out" style="width: 32px; height: 32px; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 1.25rem; line-height: 1;">−</button>
+                    <button onclick="resetStockChartZoom()" title="Reset" style="width: 32px; height: 32px; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-muted); border-radius: 4px; cursor: pointer; font-size: 0.75rem;">↺</button>
+                    <button onclick="closeStockChart()" class="close-btn">✕</button>
+                </div>
             </div>
             <div class="modal-body">
                 <div style="position: relative; height: 500px;">
                     <canvas id="stockChartCanvas"></canvas>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Industry Compare Modal -->
+    <div id="industryCompareModal" class="modal">
+        <div class="modal-content" style="max-width: 95vw; width: 95vw; height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <h2>Compare Industries</h2>
+                <button onclick="closeIndustryCompareModal()" class="close-btn">✕</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem; flex: 1; overflow: hidden;">
+                <div style="display: flex; gap: 1.5rem; height: 100%;">
+                    <!-- Left Panel: Industry Selector -->
+                    <div id="industrySelectorPanel" style="width: 260px; flex-shrink: 0; background: var(--bg-secondary); border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; overflow: hidden;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                            <span style="font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);">Select Industries</span>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button onclick="selectAllIndustries()" style="padding: 0.2rem 0.4rem; background: transparent; border: 1px solid var(--border); color: var(--text-muted); border-radius: 3px; cursor: pointer; font-size: 0.625rem;">All</button>
+                                <button onclick="clearAllIndustries()" style="padding: 0.2rem 0.4rem; background: transparent; border: 1px solid var(--border); color: var(--text-muted); border-radius: 3px; cursor: pointer; font-size: 0.625rem;">None</button>
+                            </div>
+                        </div>
+                        <input type="text" id="industrySearchInput" placeholder="Search industries..." oninput="filterIndustryList()" style="width: 100%; padding: 0.5rem 0.75rem; background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary); border-radius: 4px; font-size: 0.75rem; margin-bottom: 0.5rem; outline: none;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+                        <div style="margin-bottom: 0.75rem; padding: 0.5rem; background: var(--bg-primary); border-radius: 4px;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem;">
+                                <input type="checkbox" id="percentileFilterEnabled" onchange="togglePercentileFilter()" style="cursor: pointer; width: 14px; height: 14px;">
+                                <span style="font-size: 0.6875rem; color: var(--text-secondary);">Filter by percentile</span>
+                                <span id="percentileValue" style="font-size: 0.6875rem; color: var(--accent); font-weight: 600; margin-left: auto; display: none;">≥ 50</span>
+                            </label>
+                            <input type="range" id="percentileSlider" min="0" max="90" value="50" step="5" oninput="updatePercentileFilter()" style="width: 100%; height: 4px; -webkit-appearance: none; background: var(--border); border-radius: 2px; outline: none; cursor: pointer; opacity: 0.3;" disabled>
+                        </div>
+                        <div id="sectorIndustryList" style="flex: 1; overflow-y: auto;">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                    <!-- Right Panel: Chart -->
+                    <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
+                        <div id="hoveredIndustryLabel" style="display: none; padding: 0.5rem 1rem; background: var(--accent); color: var(--bg-primary); font-size: 0.8125rem; font-weight: 600; border-radius: 4px; margin-bottom: 0.5rem; text-align: center;"></div>
+                        <div style="flex: 1; position: relative;">
+                            <canvas id="industryCompareCanvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="flex-shrink: 0;">
+                <button onclick="loadIndustryCompare(30)" class="time-btn">30 Days</button>
+                <button onclick="loadIndustryCompare(90)" class="time-btn active" id="industryCompare90">90 Days</button>
+                <button onclick="loadIndustryCompare(180)" class="time-btn">180 Days</button>
             </div>
         </div>
     </div>
@@ -1072,7 +1149,23 @@
 
         // Stock chart functions
         let stockChartInstance = null;
-        
+
+        function resetStockChartZoom() {
+            if (stockChartInstance) {
+                stockChartInstance.resetZoom();
+            }
+        }
+
+        function zoomStockChart(direction) {
+            if (stockChartInstance) {
+                if (direction > 0) {
+                    stockChartInstance.zoom(1.2);
+                } else {
+                    stockChartInstance.zoom(0.8);
+                }
+            }
+        }
+
         async function showStockChart(symbol, name) {
             document.getElementById('stockChartModal').style.display = 'flex';
             document.getElementById('stockChartTitle').textContent = `${symbol} - ${name}`;
@@ -1205,11 +1298,28 @@
                                     return `${context.dataset.label}: ${val.toFixed(2)} (${prefix}${change}%)`;
                                 }
                             }
+                        },
+                        zoom: {
+                            pan: {
+                                enabled: true,
+                                mode: 'x',
+                            },
+                            zoom: {
+                                wheel: { enabled: false },
+                                pinch: { enabled: false },
+                                drag: { enabled: false },
+                                mode: 'x',
+                            },
+                            limits: {
+                                x: { min: entityLine.length > 0 ? entityLine[0].x : null, max: entityLine.length > 0 ? entityLine[entityLine.length - 1].x : null, minRange: 7 * 24 * 60 * 60 * 1000 }
+                            }
                         }
                     },
                     scales: {
                         x: {
                             type: 'time',
+                            min: entityLine.length > 0 ? entityLine[0].x : null,
+                            max: entityLine.length > 0 ? entityLine[entityLine.length - 1].x : null,
                             time: {
                                 unit: 'week',
                                 displayFormats: { week: 'MMM d' }
@@ -1322,11 +1432,28 @@
                                     }
                                 }
                             }
+                        },
+                        zoom: {
+                            pan: {
+                                enabled: true,
+                                mode: 'x',
+                            },
+                            zoom: {
+                                wheel: { enabled: false },
+                                pinch: { enabled: false },
+                                drag: { enabled: false },
+                                mode: 'x',
+                            },
+                            limits: {
+                                x: { min: ohlcData.length > 0 ? ohlcData[0].x : null, max: ohlcData.length > 0 ? ohlcData[ohlcData.length - 1].x : null, minRange: 7 * 24 * 60 * 60 * 1000 }
+                            }
                         }
                     },
                     scales: {
                         x: {
                             type: 'time',
+                            min: ohlcData.length > 0 ? ohlcData[0].x : null,
+                            max: ohlcData.length > 0 ? ohlcData[ohlcData.length - 1].x : null,
                             time: {
                                 unit: 'day',
                                 displayFormats: {
@@ -1388,6 +1515,7 @@
             if (e.key === 'Escape') {
                 closeChart();
                 closeStockChart();
+                closeIndustryCompareModal();
             }
         });
 
@@ -1395,23 +1523,24 @@
         document.addEventListener('click', (e) => {
             if (e.target.id === 'chartModal') closeChart();
             if (e.target.id === 'stockChartModal') closeStockChart();
+            if (e.target.id === 'industryCompareModal') closeIndustryCompareModal();
         });
 
         // Dashboard table sorting - optimized
         let dashboardSortState = {};
-        
+
         function sortDashboardTable(columnIndex, tableClass) {
             const rows = Array.from(document.querySelectorAll(`.data-row.${tableClass}`));
             if (rows.length === 0) return;
-            
+
             const headers = document.querySelectorAll(`.table-header.${tableClass} > div[onclick]`);
             const header = headers[columnIndex];
-            
+
             // Toggle sort direction
             const key = `${tableClass}-${columnIndex}`;
             const isAscending = dashboardSortState[key] !== true;
             dashboardSortState[key] = isAscending;
-            
+
             // Update header indicators
             headers.forEach((h, idx) => {
                 h.classList.toggle('sorted', idx === columnIndex);
@@ -1426,34 +1555,351 @@
                     }
                 }
             });
-            
+
             // Sort rows
             rows.sort((a, b) => {
                 let aVal = a.children[columnIndex]?.textContent.trim() || '';
                 let bVal = b.children[columnIndex]?.textContent.trim() || '';
-                
+
                 // Remove % and parse as number
                 aVal = aVal.replace('%', '').trim();
                 bVal = bVal.replace('%', '').trim();
-                
+
                 const aNum = parseFloat(aVal);
                 const bNum = parseFloat(bVal);
-                
+
                 if (!isNaN(aNum) && !isNaN(bNum)) {
                     return isAscending ? aNum - bNum : bNum - aNum;
                 }
-                
-                return isAscending 
+
+                return isAscending
                     ? aVal.localeCompare(bVal)
                     : bVal.localeCompare(aVal);
             });
-            
+
             // Re-append sorted rows in batch
             const container = rows[0]?.parentElement;
             if (container) {
                 const fragment = document.createDocumentFragment();
                 rows.forEach(row => fragment.appendChild(row));
                 container.appendChild(fragment);
+            }
+        }
+
+        // Industry Compare Modal
+        let sectorIndustryHierarchy = {};
+        let selectedIndustries = new Set();
+        let expandedSectors = new Set();
+        let industryCompareChart = null;
+        let industryCompareDays = 90;
+
+        async function showIndustryCompareModal() {
+            document.getElementById('industryCompareModal').style.display = 'flex';
+
+            // Fetch hierarchy if not loaded
+            if (Object.keys(sectorIndustryHierarchy).length === 0) {
+                try {
+                    const response = await fetch('/api/sectors-industries');
+                    const data = await response.json();
+                    sectorIndustryHierarchy = data.sectors;
+                    renderSectorIndustryList();
+                } catch (error) {
+                    console.error('Error fetching hierarchy:', error);
+                }
+            }
+        }
+
+        function closeIndustryCompareModal() {
+            document.getElementById('industryCompareModal').style.display = 'none';
+            if (industryCompareChart) {
+                industryCompareChart.destroy();
+                industryCompareChart = null;
+            }
+        }
+
+        let industrySearchTerm = '';
+        let minPercentile = 50;
+        let percentileFilterEnabled = false;
+
+        function filterIndustryList() {
+            industrySearchTerm = document.getElementById('industrySearchInput').value.toLowerCase();
+            renderSectorIndustryList();
+        }
+
+        function togglePercentileFilter() {
+            percentileFilterEnabled = document.getElementById('percentileFilterEnabled').checked;
+            const slider = document.getElementById('percentileSlider');
+            const valueLabel = document.getElementById('percentileValue');
+
+            if (percentileFilterEnabled) {
+                slider.disabled = false;
+                slider.style.opacity = '1';
+                valueLabel.style.display = 'block';
+            } else {
+                slider.disabled = true;
+                slider.style.opacity = '0.3';
+                valueLabel.style.display = 'none';
+            }
+            renderSectorIndustryList();
+        }
+
+        function updatePercentileFilter() {
+            minPercentile = parseInt(document.getElementById('percentileSlider').value);
+            document.getElementById('percentileValue').textContent = '≥ ' + minPercentile;
+            renderSectorIndustryList();
+        }
+
+        function renderSectorIndustryList() {
+            const container = document.getElementById('sectorIndustryList');
+            container.innerHTML = '';
+
+            const sectors = Object.keys(sectorIndustryHierarchy).sort();
+
+            sectors.forEach(sector => {
+                let industries = sectorIndustryHierarchy[sector];
+
+                // Filter industries by search term and percentile (if enabled)
+                const filteredIndustries = industries.filter(ind => {
+                    const name = ind.name || ind;
+                    const pct = ind.percentile || 0;
+                    const matchesSearch = !industrySearchTerm || name.toLowerCase().includes(industrySearchTerm);
+                    const matchesPercentile = !percentileFilterEnabled || pct >= minPercentile;
+                    return matchesSearch && matchesPercentile;
+                });
+
+                // Skip sector if no matching industries
+                if (filteredIndustries.length === 0) return;
+
+                const isExpanded = expandedSectors.has(sector) || industrySearchTerm || percentileFilterEnabled;
+                const allIndustryNames = industries.map(i => i.name || i);
+                const filteredNames = filteredIndustries.map(i => i.name || i);
+                const selectedCount = allIndustryNames.filter(i => selectedIndustries.has(i)).length;
+                const allSelected = selectedCount === allIndustryNames.length && allIndustryNames.length > 0;
+                const someSelected = selectedCount > 0 && selectedCount < allIndustryNames.length;
+
+                const sectorDiv = document.createElement('div');
+                sectorDiv.style.marginBottom = '0.375rem';
+                sectorDiv.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.5rem; background: var(--bg-elevated); border-radius: 4px; cursor: pointer;" onclick="toggleSectorExpand('${sector}')">
+                        <span style="font-size: 0.625rem; color: var(--text-muted); width: 10px;">${isExpanded ? '▼' : '▶'}</span>
+                        <input type="checkbox"
+                               ${allSelected ? 'checked' : ''}
+                               ${someSelected ? 'style="opacity: 0.5;"' : ''}
+                               onclick="event.stopPropagation(); toggleSector('${sector}')"
+                               style="cursor: pointer; width: 14px; height: 14px;">
+                        <span style="font-size: 0.75rem; font-weight: 500; flex: 1;">${sector}</span>
+                        <span style="font-size: 0.625rem; color: var(--text-muted);">${filteredIndustries.length}</span>
+                    </div>
+                    ${isExpanded ? `
+                        <div style="margin-left: 1.25rem; margin-top: 0.125rem;">
+                            ${filteredIndustries.map(ind => {
+                                const name = ind.name || ind;
+                                const pct = Math.round(ind.percentile || 0);
+                                return `
+                                <label style="display: flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.4rem; cursor: pointer; border-radius: 3px; transition: background 0.15s;" onmouseover="this.style.background='var(--bg-elevated)'" onmouseout="this.style.background='transparent'">
+                                    <input type="checkbox"
+                                           ${selectedIndustries.has(name) ? 'checked' : ''}
+                                           onchange="toggleIndustry('${name.replace(/'/g, "\\'")}')"
+                                           style="cursor: pointer; width: 13px; height: 13px;">
+                                    <span style="font-size: 0.6875rem; color: var(--text-secondary); flex: 1;">${industrySearchTerm ? name.replace(new RegExp(industrySearchTerm, 'gi'), '<mark style="background: var(--accent); color: var(--bg-primary); padding: 0 2px; border-radius: 2px;">$&</mark>') : name}</span>
+                                    <span style="font-size: 0.5625rem; color: ${pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--accent)' : 'var(--text-muted)'}; font-weight: 500;">${pct}</span>
+                                </label>
+                            `}).join('')}
+                        </div>
+                    ` : ''}
+                `;
+                container.appendChild(sectorDiv);
+            });
+        }
+
+        function toggleSectorExpand(sector) {
+            if (expandedSectors.has(sector)) {
+                expandedSectors.delete(sector);
+            } else {
+                expandedSectors.add(sector);
+            }
+            renderSectorIndustryList();
+        }
+
+        function toggleSector(sector) {
+            const industries = sectorIndustryHierarchy[sector];
+            const industryNames = industries.map(i => i.name || i);
+            const allSelected = industryNames.every(i => selectedIndustries.has(i));
+
+            if (allSelected) {
+                industryNames.forEach(i => selectedIndustries.delete(i));
+            } else {
+                industryNames.forEach(i => selectedIndustries.add(i));
+            }
+
+            renderSectorIndustryList();
+            loadIndustryCompare(industryCompareDays);
+        }
+
+        function toggleIndustry(industry) {
+            if (selectedIndustries.has(industry)) {
+                selectedIndustries.delete(industry);
+            } else {
+                selectedIndustries.add(industry);
+            }
+            renderSectorIndustryList();
+            loadIndustryCompare(industryCompareDays);
+        }
+
+        function selectAllIndustries() {
+            // Only select visible/filtered industries
+            Object.values(sectorIndustryHierarchy).flat().forEach(i => {
+                const name = i.name || i;
+                const pct = i.percentile || 0;
+                const matchesSearch = !industrySearchTerm || name.toLowerCase().includes(industrySearchTerm);
+                const matchesPercentile = !percentileFilterEnabled || pct >= minPercentile;
+                if (matchesSearch && matchesPercentile) {
+                    selectedIndustries.add(name);
+                }
+            });
+            renderSectorIndustryList();
+            loadIndustryCompare(industryCompareDays);
+        }
+
+        function clearAllIndustries() {
+            selectedIndustries.clear();
+            renderSectorIndustryList();
+            if (industryCompareChart) {
+                industryCompareChart.destroy();
+                industryCompareChart = null;
+            }
+        }
+
+        async function loadIndustryCompare(days) {
+            industryCompareDays = days;
+
+            // Update active button
+            document.querySelectorAll('#industryCompareModal .time-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.textContent.includes(days)) btn.classList.add('active');
+            });
+
+            if (selectedIndustries.size === 0) {
+                if (industryCompareChart) {
+                    industryCompareChart.destroy();
+                    industryCompareChart = null;
+                }
+                return;
+            }
+
+            try {
+                const industries = Array.from(selectedIndustries).join(',');
+                const response = await fetch(`/api/chart/compare-industries?industries=${encodeURIComponent(industries)}&days=${days}`);
+                const data = await response.json();
+
+                if (industryCompareChart) {
+                    industryCompareChart.destroy();
+                }
+
+                const colors = [
+                    '#d97706', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6',
+                    '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1',
+                    '#14b8a6', '#f43f5e', '#a855f7', '#22c55e', '#eab308',
+                    '#0ea5e9', '#f472b6', '#a3e635', '#fb923c', '#818cf8'
+                ];
+
+                const datasets = [];
+                let colorIndex = 0;
+
+                for (const [industry, industryData] of Object.entries(data.industries)) {
+                    if (industryData.dates && industryData.dates.length > 0) {
+                        const color = colors[colorIndex % colors.length];
+                        datasets.push({
+                            label: industry,
+                            data: industryData.rs_scores,
+                            borderColor: color,
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            _originalColor: color
+                        });
+                        colorIndex++;
+                    }
+                }
+
+                const firstIndustry = Object.values(data.industries)[0];
+                const labels = firstIndustry ? firstIndustry.dates : [];
+
+                // Format dates nicely
+                const formattedLabels = labels.map(d => {
+                    const date = new Date(d);
+                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                });
+
+                const ctx = document.getElementById('industryCompareCanvas').getContext('2d');
+                industryCompareChart = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: formattedLabels, datasets },
+                    options: {
+                        animation: false,
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'dataset',
+                            intersect: false
+                        },
+                        onHover: (event, activeElements, chart) => {
+                            const chartArea = chart.chartArea;
+                            if (activeElements.length > 0) {
+                                const activeIndex = activeElements[0].datasetIndex;
+                                // Update hovered industry label
+                                document.getElementById('hoveredIndustryLabel').textContent = chart.data.datasets[activeIndex].label;
+                                document.getElementById('hoveredIndustryLabel').style.display = 'block';
+                                chart.data.datasets.forEach((ds, i) => {
+                                    if (i === activeIndex) {
+                                        ds.borderWidth = 4;
+                                        ds.borderColor = ds._originalColor;
+                                    } else {
+                                        ds.borderWidth = 1;
+                                        ds.borderColor = ds._originalColor + '25';
+                                    }
+                                });
+                                chart.update('none');
+                            } else {
+                                document.getElementById('hoveredIndustryLabel').style.display = 'none';
+                                chart.data.datasets.forEach((ds) => {
+                                    ds.borderWidth = 1.5;
+                                    ds.borderColor = ds._originalColor;
+                                });
+                                chart.update('none');
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: false }
+                        },
+                        scales: {
+                            x: {
+                                grid: { color: '#1f2023' },
+                                ticks: {
+                                    color: '#6b7280',
+                                    maxRotation: 0,
+                                    maxTicksLimit: 10,
+                                    font: { size: 11 }
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'RS Score',
+                                    color: '#9ca3af',
+                                    font: { size: 12, weight: 'bold' }
+                                },
+                                grid: { color: '#1f2023' },
+                                ticks: { color: '#6b7280' }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading industry comparison:', error);
             }
         }
 

@@ -19,6 +19,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.2.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1/dist/chartjs-chart-financial.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -873,6 +875,7 @@
     <div x-data="{
             showAddModal: {{ 'true' if show_upload_modal else 'false' }},
             showAdvanced: false,
+            showWeights: false,
             showChartModal: false,
             chartSymbol: '',
             chartName: '',
@@ -883,6 +886,7 @@
          }"
          @show-add-modal.window="showAddModal = true"
          @show-advanced-modal.window="showAdvanced = true"
+         @show-weights-modal.window="showWeights = true"
          @show-chart-modal.window="showChartModal = true; chartSymbol = $event.detail.symbol; chartName = $event.detail.name; loadChartData($event.detail.symbol)">
         <!-- Pipeline Status -->
         <section>
@@ -897,24 +901,6 @@
                      hx-trigger="load, every 2000ms"
                      hx-swap="innerHTML">
                     {% include 'partials/pipeline_stages.html' %}
-                </div>
-            </div>
-        </section>
-
-        <!-- Divider -->
-        <div style="display: flex; justify-content: center; margin: 1.5rem 0; padding: 0 1rem;">
-            <div style="width: 80%; max-width: 1200px; height: 1px; background: var(--accent);"></div>
-        </div>
-
-        <!-- RS Settings -->
-        <section>
-            <div class="container">
-                <div class="section-label">RS SETTINGS</div>
-                <div id="rs-settings-container"
-                     hx-get="/api/settings/rs-html"
-                     hx-trigger="load"
-                     hx-swap="innerHTML">
-                    {% include 'partials/rs_settings.html' %}
                 </div>
             </div>
         </section>
@@ -939,7 +925,7 @@
 
                 <!-- Filters -->
                 <div class="filters" x-show="true">
-                    <select x-model="filter" name="filter" 
+                    <select x-model="filter" name="filter"
                             hx-get="/api/ticker-table-html"
                             hx-trigger="change"
                             hx-target="#ticker-table"
@@ -969,9 +955,9 @@
                         {% if industry %}<option value="{{ industry }}">{{ industry }}</option>{% endif %}
                         {% endfor %}
                     </select>
-                    <input type="text" 
-                           placeholder="Search symbol..." 
-                           x-model="search" 
+                    <input type="text"
+                           placeholder="Search symbol..."
+                           x-model="search"
                            name="search"
                            hx-get="/api/ticker-table-html"
                            hx-trigger="keyup changed delay:500ms"
@@ -980,10 +966,10 @@
                     <span style="color: var(--text-muted); font-size: 0.875rem; margin-left: auto;">{{ tickers | length }} tickers</span>
                 </div>
 
-                <!-- HTMX: Polling every 2 seconds + refresh on pipeline activity -->
+                <!-- HTMX: Only refresh when pipeline triggers it (no continuous polling) -->
                 <div id="ticker-table"
                      hx-get="/api/ticker-table-html"
-                     hx-trigger="load, every 2000ms, refreshTickerTable from:body"
+                     hx-trigger="load, refreshTickerTable from:body"
                      hx-include="[name='filter'],[name='sector'],[name='industry'],[name='search']">
                     {% include 'partials/ticker_table.html' %}
                 </div>
@@ -1045,7 +1031,12 @@
             <div class="modal-content" style="max-width: 1200px; width: 90vw;">
                 <div class="modal-header">
                     <h2><span x-text="chartSymbol"></span> - <span x-text="chartName" style="color: var(--text-muted); font-weight: 400;"></span></h2>
-                    <button class="close-btn" @click="showChartModal = false">✕</button>
+                    <div style="display: flex; align-items: center; gap: 0.25rem;">
+                        <button onclick="zoomChart(1)" title="Zoom In" style="width: 32px; height: 32px; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 1.25rem; line-height: 1;">+</button>
+                        <button onclick="zoomChart(-1)" title="Zoom Out" style="width: 32px; height: 32px; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 1.25rem; line-height: 1;">−</button>
+                        <button onclick="resetChartZoom()" title="Reset" style="width: 32px; height: 32px; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-muted); border-radius: 4px; cursor: pointer; font-size: 0.75rem;">↺</button>
+                        <button class="close-btn" @click="showChartModal = false">✕</button>
+                    </div>
                 </div>
                 <div class="modal-body" style="padding: 2rem;">
                     <div style="position: relative; height: 500px;">
@@ -1090,13 +1081,92 @@
                 </div>
             </div>
         </div>
+
+        <!-- RS Weights Modal -->
+        <div id="weights-modal" class="modal" x-show="showWeights" @click.self="showWeights = false" x-cloak style="display: none;">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h2>RS Calculation Weights</h2>
+                    <button class="close-btn" @click="showWeights = false">✕</button>
+                </div>
+                <div class="modal-body">
+                    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Quarterly weights for relative strength calculation. Weights are normalized to sum to 100%.</p>
+                    <form hx-post="/api/settings/rs"
+                          hx-swap="none"
+                          @htmx:after-request="showWeights = false">
+                        <div class="weight-grid">
+                            <div class="weight-item">
+                                <label for="q1_weight">Q1 (Recent)</label>
+                                <div class="weight-input-wrap">
+                                    <input type="number"
+                                           id="q1_weight"
+                                           name="q1_weight"
+                                           value="{{ (settings.q1_weight * 100) | round | int }}"
+                                           min="0"
+                                           max="100"
+                                           step="5">
+                                    <span class="weight-suffix">%</span>
+                                </div>
+                                <span class="weight-hint">Last 63 days</span>
+                            </div>
+                            <div class="weight-item">
+                                <label for="q2_weight">Q2</label>
+                                <div class="weight-input-wrap">
+                                    <input type="number"
+                                           id="q2_weight"
+                                           name="q2_weight"
+                                           value="{{ (settings.q2_weight * 100) | round | int }}"
+                                           min="0"
+                                           max="100"
+                                           step="5">
+                                    <span class="weight-suffix">%</span>
+                                </div>
+                                <span class="weight-hint">64-126 days</span>
+                            </div>
+                            <div class="weight-item">
+                                <label for="q3_weight">Q3</label>
+                                <div class="weight-input-wrap">
+                                    <input type="number"
+                                           id="q3_weight"
+                                           name="q3_weight"
+                                           value="{{ (settings.q3_weight * 100) | round | int }}"
+                                           min="0"
+                                           max="100"
+                                           step="5">
+                                    <span class="weight-suffix">%</span>
+                                </div>
+                                <span class="weight-hint">127-189 days</span>
+                            </div>
+                            <div class="weight-item">
+                                <label for="q4_weight">Q4 (Oldest)</label>
+                                <div class="weight-input-wrap">
+                                    <input type="number"
+                                           id="q4_weight"
+                                           name="q4_weight"
+                                           value="{{ (settings.q4_weight * 100) | round | int }}"
+                                           min="0"
+                                           max="100"
+                                           step="5">
+                                    <span class="weight-suffix">%</span>
+                                </div>
+                                <span class="weight-hint">190-252 days</span>
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="border-top: none; padding-top: 1rem;">
+                            <button type="button" class="btn-secondary" @click="showWeights = false">Cancel</button>
+                            <button type="submit" class="btn-primary">Save Weights</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- HTMX event listener to refresh table after POST requests -->
     <script>
         document.body.addEventListener('htmx:afterRequest', function(evt) {
             if (evt.detail.requestConfig.verb === 'POST') {
-                htmx.trigger('#ticker-table', 'load');
+                htmx.trigger('#ticker-table', 'refreshTickerTable');
             }
         });
         
@@ -1172,6 +1242,22 @@
         
         // Load and render detailed chart with candlesticks + RS overlay
         let detailChartInstance = null;
+
+        function resetChartZoom() {
+            if (detailChartInstance) {
+                detailChartInstance.resetZoom();
+            }
+        }
+
+        function zoomChart(direction) {
+            if (detailChartInstance) {
+                if (direction > 0) {
+                    detailChartInstance.zoom(1.2);
+                } else {
+                    detailChartInstance.zoom(0.8);
+                }
+            }
+        }
         
         window.loadChartData = async function(symbol) {
             try {
@@ -1213,6 +1299,10 @@
                 x: luxon.DateTime.fromISO(date).valueOf(),
                 y: rs_scores[i]
             })).filter(d => d.y !== null);
+
+            // Get date range for x-axis bounds
+            const minDate = ohlcData.length > 0 ? ohlcData[0].x : null;
+            const maxDate = ohlcData.length > 0 ? ohlcData[ohlcData.length - 1].x : null;
 
             // Create Chart.js chart with candlestick + RS overlay
             detailChartInstance = new Chart(ctx, {
@@ -1280,11 +1370,28 @@
                                     }
                                 }
                             }
+                        },
+                        zoom: {
+                            pan: {
+                                enabled: true,
+                                mode: 'x',
+                            },
+                            zoom: {
+                                wheel: { enabled: false },
+                                pinch: { enabled: false },
+                                drag: { enabled: false },
+                                mode: 'x',
+                            },
+                            limits: {
+                                x: { min: minDate, max: maxDate, minRange: 7 * 24 * 60 * 60 * 1000 }
+                            }
                         }
                     },
                     scales: {
                         x: {
                             type: 'time',
+                            min: minDate,
+                            max: maxDate,
                             time: {
                                 unit: 'day',
                                 displayFormats: {
@@ -1341,61 +1448,6 @@
             });
         }
 
-        // Table sorting functionality
-        let sortState = {};
-        
-        function sortTable(columnIndex) {
-            const table = document.querySelector('table tbody');
-            if (!table) return;
-            
-            const rows = Array.from(table.querySelectorAll('tr'));
-            const header = document.querySelectorAll('th')[columnIndex];
-            
-            // Toggle sort direction
-            const isAscending = sortState[columnIndex] !== true;
-            sortState = { [columnIndex]: isAscending };
-            
-            // Update header indicators
-            document.querySelectorAll('th .sort-indicator').forEach(el => {
-                el.textContent = '⇅';
-                el.style.opacity = '0.5';
-            });
-            
-            if (header) {
-                header.classList.add('sorted');
-                const indicator = header.querySelector('.sort-indicator');
-                if (indicator) {
-                    indicator.textContent = isAscending ? '↑' : '↓';
-                    indicator.style.opacity = '1';
-                }
-            }
-            
-            // Sort rows
-            rows.sort((a, b) => {
-                const aCell = a.cells[columnIndex];
-                const bCell = b.cells[columnIndex];
-                
-                let aVal = aCell.textContent.trim();
-                let bVal = bCell.textContent.trim();
-                
-                // Try to parse as number
-                const aNum = parseFloat(aVal);
-                const bNum = parseFloat(bVal);
-                
-                if (!isNaN(aNum) && !isNaN(bNum)) {
-                    return isAscending ? aNum - bNum : bNum - aNum;
-                }
-                
-                // String comparison
-                return isAscending 
-                    ? aVal.localeCompare(bVal)
-                    : bVal.localeCompare(aVal);
-            });
-            
-            // Re-append sorted rows
-            rows.forEach(row => table.appendChild(row));
-        }
-        
     </script>
 </body>
 </html>

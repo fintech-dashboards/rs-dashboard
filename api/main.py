@@ -26,6 +26,12 @@ async def lifespan(app: FastAPI):
         # Clear stale tasks from previous session
         cleanup_on_startup()
 
+        # Clean up old task records (older than 7 days)
+        from db import cleanup_old_tasks
+        deleted = cleanup_old_tasks(days=7)
+        if deleted > 0:
+            print(f"  ✓ Cleaned up {deleted} old task records")
+
         # Fetch SPY prices if not already fetched
         from db import get_price_count, get_settings
         spy_count = get_price_count('SPY')

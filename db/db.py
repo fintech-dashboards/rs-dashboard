@@ -177,6 +177,30 @@ def cleanup_on_startup() -> None:
         conn.close()
 
 
+def cleanup_old_tasks(days: int = 7) -> int:
+    """Clean up old task records to prevent database bloat.
+    
+    Args:
+        days: Keep task records for this many days (default: 7)
+    
+    Returns:
+        Number of records deleted
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            DELETE FROM task_status 
+            WHERE status IN ('completed', 'failed')
+            AND datetime(updated_at) < datetime('now', '-' || ? || ' days')
+        """, (days,))
+        deleted = cursor.rowcount
+        conn.commit()
+        return deleted
+    finally:
+        conn.close()
+
+
 def get_pipeline_status() -> dict:
     """Get entity-based pipeline status with data counts"""
     conn = get_connection()

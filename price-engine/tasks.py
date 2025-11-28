@@ -4,6 +4,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from collections import OrderedDict
 
 # Thread pool for concurrent task execution (single worker to avoid rate limits)
 _executor = ThreadPoolExecutor(max_workers=1)
@@ -24,8 +25,9 @@ def rate_limit():
             time.sleep(MIN_REQUEST_INTERVAL - elapsed)
         _last_request_time = time.time()
 
-# Track submitted futures by task_id
-_futures = {}
+# Track submitted futures by task_id (limited to 100 most recent)
+_futures = OrderedDict()
+_MAX_FUTURES = 100
 
 
 def submit_task(func, *args, **kwargs) -> str:
@@ -34,9 +36,25 @@ def submit_task(func, *args, **kwargs) -> str:
     Returns:
         task_id: UUID string to track the task
     """
+    global _futures
+    
     task_id = str(uuid.uuid4())
     future = _executor.submit(func, task_id, *args, **kwargs)
     _futures[task_id] = future
+    
+    # Clean up old completed futures to prevent memory leak
+    if len(_futures) > _MAX_FUTURES:
+        # Remove oldest completed futures
+        to_remove = []
+        for old_id, old_future in list(_futures.items()):
+            if old_future.done():
+                to_remove.append(old_id)
+                if len(_futures) - len(to_remove) <= _MAX_FUTURES:
+                    break
+        
+        for old_id in to_remove:
+            del _futures[old_id]
+    
     return task_id
 
 

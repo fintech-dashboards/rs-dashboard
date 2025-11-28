@@ -74,3 +74,18 @@ async def get_all_industries_chart(sector: str, days: int = Query(default=90)):
     """Get RS scores for all industries in a sector (compare chart)"""
     industries_data = rs_service.get_all_industries_strength(sector, days)
     return {"industries": industries_data, "sector": sector}
+
+
+@router.get("/sectors-industries")
+async def get_sectors_industries():
+    """Get all sectors with their industries (hierarchical)"""
+    hierarchy = rs_service.get_sector_industry_hierarchy()
+    return {"sectors": hierarchy}
+
+
+@router.get("/chart/compare-industries")
+async def get_compare_industries_chart(industries: str = Query(...), days: int = Query(default=90)):
+    """Get RS scores for multiple industries (compare chart)"""
+    industry_list = [i.strip() for i in industries.split(',') if i.strip()]
+    industries_data = rs_service.get_industries_comparison(industry_list, days)
+    return {"industries": industries_data}

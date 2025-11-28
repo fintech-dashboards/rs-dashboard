@@ -2,7 +2,7 @@
 .env
 .env.local
 .env.*.local
-
+db/data/*
 # Environment files with secrets
 .env
 .env.local

@@ -175,5 +175,8 @@ MIT License - see LICENSE file for details
 
 ## Contact
 
-Questions or ideas? Reach out to [thatfintechguy@outlook.com](mailto:thatfintechguy@outlook.com)
+Questions or ideas? [thatfintechguy@outlook.com](mailto:thatfintechguy@outlook.com)
 
+---
+
+*Expensive tools are pricing out retail traders and creating information asymmetry. RS Dashboard levels the playing field.*
