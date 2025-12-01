@@ -65,6 +65,17 @@ uv run python -m uvicorn api.main:app --host 0.0.0.0 --port 5001
 
 4. Open `http://localhost:5001` in your browser
 
+## Screenshots
+
+### Dashboard
+![Dashboard](screenshots/dashboard.png)
+
+### Data Manager
+![Data Manager](screenshots/data-manager.png)
+
+### Compare Tool
+![Compare Tool](screenshots/compare-tool.png)
+
 ## Usage
 
 ### Dashboard Page (`/dashboard`)
@@ -91,17 +102,23 @@ uv run python -m uvicorn api.main:app --host 0.0.0.0 --port 5001
 
 ### RS Score Calculation
 
+Applied to **stocks, sectors, and industries**:
+
 ```
-RS Score = (1 + Weighted Stock Return) / (1 + Weighted SPY Return) × 100
+RS Score = (1 + Weighted Return) / (1 + Weighted Benchmark Return) × 100
 ```
 
-**Quarterly Weights (configurable in Admin):**
-- Q1 (most recent 63 days): 40%
-- Q2 (64-126 days): 20%
-- Q3 (127-189 days): 20%
-- Q4 (190-252 days): 20%
+Where:
+- **Weighted Return** = Q1 Return × 40% + Q2 Return × 20% + Q3 Return × 20% + Q4 Return × 20%
+- **Weighted Benchmark Return** = Same quarterly weighting applied to SPY
 
-Higher scores indicate stronger relative performance vs SPY. Score of 100 = matching SPY.
+**Quarterly Periods (configurable in Admin):**
+- Q1 (most recent 63 days): 40% weight
+- Q2 (64-126 days): 20% weight
+- Q3 (127-189 days): 20% weight
+- Q4 (190-252 days): 20% weight
+
+Higher scores indicate stronger relative performance vs SPY. Score of 100 = matching SPY performance.
 
 ### Strength % (Sectors/Industries)
 
